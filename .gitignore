@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+*.dll
+*.pdb
+
+# Design docs
+design_doc/
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+
+# SMAPI logs
+smapi-logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (may contain personal preferences)
+config.json
+
+# Screenshots (generated, not source)
+screenshots/

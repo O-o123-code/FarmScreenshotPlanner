@@ -1,0 +1,36 @@
+{
+  // === HUD Messages ===
+  "Message.Capturing": "Generating farm blueprint, please wait...",
+  "Message.Saved": "Farm blueprint saved to: {{path}}",
+
+  // === Config: Hotkey ===
+  "Config.ScreenshotKey.Name": "Screenshot Key",
+  "Config.ScreenshotKey.Desc": "Press this key to capture a farm blueprint screenshot.",
+
+  // === Config: Capture Area ===
+  "Config.CaptureArea.Name": "Capture Area",
+  "Config.CaptureArea.Desc": "Choose which area to capture: Farm, Greenhouse, Ginger Island, or current location.",
+
+  // === Config: Grid ===
+  "Config.EnableGrid.Name": "Enable Grid",
+  "Config.EnableGrid.Desc": "Toggle tile grid overlay on screenshots.",
+
+  "Config.GridColor.Name": "Grid Color",
+  "Config.GridColor.Desc": "Grid line color in hex format (AARRGGBB). Example: #FF000000 for black.",
+
+  "Config.GridThickness.Name": "Grid Thickness",
+  "Config.GridThickness.Desc": "Grid line thickness in pixels (1-3).",
+
+  "Config.GridOpacity.Name": "Grid Opacity",
+  "Config.GridOpacity.Desc": "Grid line opacity (0-255). 0 = fully transparent, 255 = fully opaque.",
+
+  "Config.GridOnlyOnScreenshot.Name": "Grid Only on Screenshot",
+  "Config.GridOnlyOnScreenshot.Desc": "If enabled, grid only appears in saved screenshots, not during normal gameplay.",
+
+  // === Config: Save ===
+  "Config.AutoOpenFolder.Name": "Auto-Open Folder",
+  "Config.AutoOpenFolder.Desc": "Automatically open the screenshots folder after saving.",
+
+  "Config.FileNamePrefix.Name": "File Name Prefix",
+  "Config.FileNamePrefix.Desc": "Prefix for saved screenshot filenames."
+}

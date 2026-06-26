@@ -1,0 +1,10 @@
+{
+  "Name": "FarmBlueprint",
+  "Author": "kaixindawanglpc",
+  "Version": "1.0.0",
+  "Description": "Capture full farm screenshots with optional tile grid overlay for layout planning.",
+  "UniqueID": "kaixindawanglpc.FarmBlueprint",
+  "EntryDll": "FarmBlueprint.dll",
+  "MinimumApiVersion": "4.0.0",
+  "UpdateKeys": []
+}
