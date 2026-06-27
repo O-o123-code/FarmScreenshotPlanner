@@ -25,7 +25,7 @@ public class MapRenderer
         gd.Clear(Color.White);
 
         var prevViewport = Game1.viewport;
-        Game1.viewport = new Rectangle(0, 0, mapPixelW, mapPixelH);
+        Game1.viewport = new xTile.Dimensions.Rectangle(0, 0, mapPixelW, mapPixelH);
 
         try
         {
@@ -33,9 +33,9 @@ public class MapRenderer
             using var mapSB = new SpriteBatch(gd);
 
             displayDevice.BeginScene(mapSB);
-            displayDevice.DrawMap(map, "Back");
-            displayDevice.DrawMap(map, "Buildings");
-            displayDevice.DrawMap(map, "Front");
+            ((dynamic)displayDevice).DrawMap(map, "Back", false);
+            ((dynamic)displayDevice).DrawMap(map, "Buildings", false);
+            ((dynamic)displayDevice).DrawMap(map, "Front", false);
             displayDevice.EndScene();
 
             using var manualSB = new SpriteBatch(gd);
@@ -43,24 +43,24 @@ public class MapRenderer
 
             foreach (var building in location.buildings)
             {
-                building.draw(manualSB, building.tileX.Value * 64, building.tileY.Value * 64);
+                building.draw(manualSB);
             }
 
             foreach (var (tile, feature) in location.terrainFeatures.Pairs)
             {
-                feature.draw(manualSB, tile);
+                feature.draw(manualSB);
             }
 
             foreach (var feature in location.largeTerrainFeatures)
             {
-                feature.draw(manualSB, feature.Tile);
+                feature.draw(manualSB);
             }
 
             if (location is Farm farm)
             {
                 foreach (var clump in farm.resourceClumps)
                 {
-                    clump.draw(manualSB, clump.tile.Value);
+                    clump.draw(manualSB);
                 }
             }
 
@@ -77,7 +77,7 @@ public class MapRenderer
             manualSB.End();
 
             displayDevice.BeginScene(mapSB);
-            displayDevice.DrawMap(map, "AlwaysFront");
+            ((dynamic)displayDevice).DrawMap(map, "AlwaysFront", false);
             displayDevice.EndScene();
         }
         finally

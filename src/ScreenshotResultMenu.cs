@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using StardewValley;
 using StardewValley.Menus;
 
@@ -20,7 +21,6 @@ public class ScreenshotResultMenu : IClickableMenu
         _filePath = filePath;
         _mod = mod;
 
-        pausesGame = false;
         exitFunction = null;
 
         string openLabel = mod.Helper.Translation.Get("ui.open_folder");
@@ -78,7 +78,9 @@ public class ScreenshotResultMenu : IClickableMenu
 
     public override void draw(SpriteBatch b)
     {
-        b.Draw(Game1.fadeToBlackRect, Game1.uiViewport.Bounds, Color.Black * 0.3f);
+        b.Draw(Game1.fadeToBlackRect,
+            new Rectangle(0, 0, Game1.uiViewport.Width, Game1.uiViewport.Height),
+            Color.Black * 0.3f);
 
         IClickableMenu.drawTextureBox(
             b, xPositionOnScreen, yPositionOnScreen, width, height, Color.White);

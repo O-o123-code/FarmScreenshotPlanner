@@ -1,5 +1,6 @@
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
+using StardewModdingAPI.Utilities;
 using StardewValley;
 
 namespace FarmScreenshotPlanner;
@@ -34,7 +35,7 @@ public class ModEntry : Mod
     private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
     {
         if (!Context.IsWorldReady) return;
-        if (Config.Hotkey.JustPressed())
+        if (e.Pressed.Contains(Config.Hotkey))
         {
             Orchestrator.ExecuteCapture();
         }

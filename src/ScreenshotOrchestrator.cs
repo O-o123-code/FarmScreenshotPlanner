@@ -1,3 +1,4 @@
+using StardewModdingAPI;
 using StardewValley;
 
 namespace FarmScreenshotPlanner;

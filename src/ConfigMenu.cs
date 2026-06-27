@@ -41,7 +41,7 @@ public class ConfigMenu
 
         api.Register(manifest, Reset, Save);
 
-        api.AddSectionTitle(manifest, () => helper.Translation.Get("gmcm.hotkey").Split('/')[0]);
+        api.AddSectionTitle(manifest, () => ((string)helper.Translation.Get("gmcm.hotkey")));
         api.AddKeybind(manifest,
             () => _config.Hotkey,
             val => _config.Hotkey = val,
@@ -63,7 +63,7 @@ public class ConfigMenu
             () => helper.Translation.Get("gmcm.scale"),
             allowedValues: scaleChoices);
 
-        api.AddSectionTitle(manifest, () => helper.Translation.Get("gmcm.grid_enabled").Split('/')[0]);
+        api.AddSectionTitle(manifest, () => ((string)helper.Translation.Get("gmcm.grid_enabled")));
         api.AddBool(manifest,
             () => _config.Grid.Enabled,
             val => _config.Grid.Enabled = val,
