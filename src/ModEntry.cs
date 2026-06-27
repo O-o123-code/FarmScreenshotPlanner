@@ -36,7 +36,11 @@ public class ModEntry : Mod
         if (!Context.IsWorldReady) return;
         if (Config.Hotkey.JustPressed())
         {
-            Orchestrator.ExecuteCapture();
+            _ = Orchestrator.ExecuteCaptureAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    Monitor.Log($"Screenshot failed: {t.Exception?.InnerException?.Message}", LogLevel.Error);
+            });
         }
     }
 
@@ -50,6 +54,10 @@ public class ModEntry : Mod
         }
 
         string? locationName = args.Length > 0 ? string.Join(" ", args) : null;
-        Orchestrator.ExecuteCapture(locationName);
+        _ = Orchestrator.ExecuteCaptureAsync(locationName).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Monitor.Log($"Screenshot failed: {t.Exception?.InnerException?.Message}", LogLevel.Error);
+        });
     }
 }
