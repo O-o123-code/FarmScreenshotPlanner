@@ -48,12 +48,12 @@ public class TileGridRenderer
 
                 sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
-                for (int x = 0; x <= finalW; x += tilePx)
+                for (int x = 0; x < finalW; x += tilePx)
                 {
                     sb.Draw(pixel, new Rectangle(x, 0, config.Grid.Thickness, finalH), gridColor);
                 }
 
-                for (int y = 0; y <= finalH; y += tilePx)
+                for (int y = 0; y < finalH; y += tilePx)
                 {
                     sb.Draw(pixel, new Rectangle(0, y, finalW, config.Grid.Thickness), gridColor);
                 }

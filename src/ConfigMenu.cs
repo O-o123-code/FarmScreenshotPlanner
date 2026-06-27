@@ -55,7 +55,11 @@ public class ConfigMenu
         string[] scaleChoices = { "25%", "50%", "75%", "100%" };
         api.AddTextOption(manifest,
             () => (int)(_config.OutputScale * 100) + "%",
-            val => _config.OutputScale = int.Parse(val.Replace("%", "")) / 100f,
+            val =>
+            {
+                if (int.TryParse(val.Replace("%", ""), out int pct))
+                    _config.OutputScale = pct / 100f;
+            },
             () => helper.Translation.Get("gmcm.scale"),
             allowedValues: scaleChoices);
 

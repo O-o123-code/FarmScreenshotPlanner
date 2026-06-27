@@ -22,7 +22,7 @@ public class ScreenshotOrchestrator
         _mod = mod;
     }
 
-    public async Task ExecuteCaptureAsync(string? locationName = null)
+    public void ExecuteCapture(string? locationName = null)
     {
         if (_isRendering)
         {
@@ -72,7 +72,7 @@ public class ScreenshotOrchestrator
 
             string saveDir = ResolveSaveDirectory();
             string prefix = _mod.LocationService.GetDisplayTitle(location);
-            string savePath = await _saver.SaveAsync(finalRT, saveDir, prefix);
+            string savePath = _saver.Save(finalRT, saveDir, prefix);
 
             _freezer.Restore();
             _hud.Hide();

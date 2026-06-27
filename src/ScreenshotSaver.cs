@@ -4,7 +4,7 @@ namespace FarmScreenshotPlanner;
 
 public class ScreenshotSaver
 {
-    public Task<string> SaveAsync(RenderTarget2D target, string directory, string prefix)
+    public string Save(RenderTarget2D target, string directory, string prefix)
     {
         string fileName = $"{SanitizeFileName(prefix)}_{DateTime.Now:yyyyMMdd_HHmmss}.png";
         string fullPath = Path.Combine(directory, fileName);
@@ -16,12 +16,9 @@ public class ScreenshotSaver
             pngBytes = stream.ToArray();
         }
 
-        return Task.Run(() =>
-        {
-            Directory.CreateDirectory(directory);
-            File.WriteAllBytes(fullPath, pngBytes);
-            return fullPath;
-        });
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(fullPath, pngBytes);
+        return fullPath;
     }
 
     private static string SanitizeFileName(string name)

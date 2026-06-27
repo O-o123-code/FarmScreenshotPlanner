@@ -23,6 +23,8 @@ public static class MapLayerExt
 
     public static bool HasLayer(this Map map, string id)
     {
-        return map.GetLayer(id) is not null;
+        foreach (var layer in map.Layers)
+            if (layer.Id == id) return true;
+        return false;
     }
 }

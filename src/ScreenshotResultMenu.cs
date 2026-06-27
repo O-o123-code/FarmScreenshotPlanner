@@ -93,11 +93,14 @@ public class ScreenshotResultMenu : IClickableMenu
 
         string pathText = _filePath;
         float maxPathW = width - 32;
-        if (Game1.smallFont.MeasureString(pathText).X > maxPathW)
+        var font = Game1.smallFont;
+        if (font.MeasureString(pathText).X > maxPathW)
         {
-            while (pathText.Length > 0 && Game1.smallFont.MeasureString("..." + pathText).X > maxPathW)
-                pathText = pathText[1..];
-            pathText = "..." + pathText;
+            int maxLen = (int)(pathText.Length * maxPathW / font.MeasureString(pathText).X) - 3;
+            if (maxLen < 1) maxLen = 1;
+            while (font.MeasureString("..." + pathText[^maxLen..]).X > maxPathW)
+                maxLen--;
+            pathText = "..." + pathText[^maxLen..];
         }
         Utility.drawTextWithShadow(b, pathText, Game1.smallFont,
             new Vector2(xPositionOnScreen + 16, yPositionOnScreen + 80),
