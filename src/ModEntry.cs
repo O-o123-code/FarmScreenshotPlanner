@@ -27,9 +27,14 @@ public class ModEntry : Mod
         Orchestrator = new(this);
         ConfigMenu = new(this);
 
-        ConfigMenu.TryRegister(helper);
+        helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 
         LogFile.Info("Mod initialized.");
+    }
+
+    private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
+    {
+        ConfigMenu.TryRegister(Helper);
     }
 
     private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
