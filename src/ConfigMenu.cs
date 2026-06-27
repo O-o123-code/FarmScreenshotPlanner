@@ -1,16 +1,17 @@
 using StardewModdingAPI;
+using StardewModdingAPI.Utilities;
 
 namespace FarmScreenshotPlanner;
 
 public interface IGenericModConfigMenuApi
 {
     void Register(IManifest mod, Action reset, Action save, bool titleScreenOnly = false);
-    void AddSectionTitle(IManifest mod, Func<string> text);
-    void AddKeybind(IManifest mod, Func<SButton> getValue, Action<SButton> setValue, Func<string> name, Func<string>? tooltip = null, string? fieldId = null);
+    void AddSectionTitle(IManifest mod, Func<string> text, Func<string>? tooltip = null);
+    void AddKeybindList(IManifest mod, Func<KeybindList> getValue, Action<KeybindList> setValue, Func<string> name, Func<string>? tooltip = null, string? fieldId = null);
     void AddTextOption(IManifest mod, Func<string> getValue, Action<string> setValue, Func<string> name, Func<string>? tooltip = null, string[]? allowedValues = null, Func<string, string>? formatAllowedValue = null, string? fieldId = null);
-    void AddBool(IManifest mod, Func<bool> getValue, Action<bool> setValue, Func<string> name, Func<string>? tooltip = null, string? fieldId = null);
-    void AddNumberOption(IManifest mod, Func<int> getValue, Action<int> setValue, Func<string> name, Func<string>? tooltip = null, int? min = null, int? max = null, int? interval = null, string? fieldId = null);
-    void AddNumberOption(IManifest mod, Func<float> getValue, Action<float> setValue, Func<string> name, Func<string>? tooltip = null, float? min = null, float? max = null, float? interval = null, string? fieldId = null);
+    void AddBoolOption(IManifest mod, Func<bool> getValue, Action<bool> setValue, Func<string> name, Func<string>? tooltip = null, string? fieldId = null);
+    void AddNumberOption(IManifest mod, Func<int> getValue, Action<int> setValue, Func<string> name, Func<string>? tooltip = null, int? min = null, int? max = null, int? interval = null, Func<int, string>? formatValue = null, string? fieldId = null);
+    void AddNumberOption(IManifest mod, Func<float> getValue, Action<float> setValue, Func<string> name, Func<string>? tooltip = null, float? min = null, float? max = null, float? interval = null, Func<float, string>? formatValue = null, string? fieldId = null);
     void AddParagraph(IManifest mod, Func<string> text);
 }
 
@@ -42,7 +43,7 @@ public class ConfigMenu
         api.Register(manifest, Reset, Save);
 
         api.AddSectionTitle(manifest, () => ((string)helper.Translation.Get("gmcm.hotkey")));
-        api.AddKeybind(manifest,
+        api.AddKeybindList(manifest,
             () => _config.Hotkey,
             val => _config.Hotkey = val,
             () => helper.Translation.Get("gmcm.hotkey"));
@@ -64,7 +65,7 @@ public class ConfigMenu
             allowedValues: scaleChoices);
 
         api.AddSectionTitle(manifest, () => ((string)helper.Translation.Get("gmcm.grid_enabled")));
-        api.AddBool(manifest,
+        api.AddBoolOption(manifest,
             () => _config.Grid.Enabled,
             val => _config.Grid.Enabled = val,
             () => helper.Translation.Get("gmcm.grid_enabled"));

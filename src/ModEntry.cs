@@ -40,7 +40,7 @@ public class ModEntry : Mod
     private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
     {
         if (!Context.IsWorldReady) return;
-        if (e.Pressed.Contains(Config.Hotkey))
+        if (Config.Hotkey.Keybinds.Any(k => k.Buttons.Any(b => e.Pressed.Contains(b))))
         {
             Orchestrator.ExecuteCapture();
         }
