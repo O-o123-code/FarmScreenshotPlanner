@@ -1,5 +1,4 @@
 using StardewModdingAPI;
-using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 
 namespace FarmScreenshotPlanner;
@@ -20,9 +19,6 @@ public class ConfigMenu
 {
     private readonly ModEntry _mod;
     private readonly ModConfig _config;
-    private IModHelper? _helper;
-    private IGenericModConfigMenuApi? _api;
-    private bool _fullRegistered;
 
     public ConfigMenu(ModEntry mod)
     {
@@ -38,29 +34,10 @@ public class ConfigMenu
             return;
         }
 
-        _helper = helper;
-        _api = helper.ModRegistry.GetApi<IGenericModConfigMenuApi>(
+        var api = helper.ModRegistry.GetApi<IGenericModConfigMenuApi>(
             "spacechase0.GenericModConfigMenu");
-        if (_api is null) return;
+        if (api is null) return;
 
-        RegisterMenu(includeLocations: false);
-
-        helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
-    }
-
-    private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
-    {
-        if (_api is null || _helper is null) return;
-        if (_fullRegistered) return;
-        _fullRegistered = true;
-
-        RegisterMenu(includeLocations: true);
-    }
-
-    private void RegisterMenu(bool includeLocations)
-    {
-        var api = _api!;
-        var helper = _helper!;
         var manifest = _mod.ModManifest;
 
         api.Register(manifest, Reset, Save);
@@ -72,33 +49,11 @@ public class ConfigMenu
             val => _config.Hotkey = val,
             () => helper.Translation.Get("gmcm.hotkey"));
 
-        if (includeLocations)
-        {
-            var locNames = new List<string> { "Current Location" };
-            foreach (var loc in _mod.LocationService.GetLocations())
-            {
-                string title = _mod.LocationService.GetDisplayTitle(loc);
-                if (!locNames.Contains(title))
-                    locNames.Add(title);
-            }
-
-            api.AddTextOption(manifest,
-                () => _config.SelectedLocation,
-                val => _config.SelectedLocation = val,
-                () => helper.Translation.Get("gmcm.location"),
-                allowedValues: locNames.ToArray(),
-                formatAllowedValue: val =>
-                    val == "Current Location"
-                        ? helper.Translation.Get("config.current_location")
-                        : val);
-        }
-        else
-        {
-            api.AddTextOption(manifest,
-                () => _config.SelectedLocation,
-                val => _config.SelectedLocation = val,
-                () => helper.Translation.Get("gmcm.location"));
-        }
+        api.AddTextOption(manifest,
+            () => _config.SelectedLocation,
+            val => _config.SelectedLocation = val,
+            () => helper.Translation.Get("gmcm.location"),
+            tooltip: () => helper.Translation.Get("gmcm.location_tooltip"));
 
         string[] scaleChoices = { "25%", "50%", "75%", "100%" };
         api.AddTextOption(manifest,

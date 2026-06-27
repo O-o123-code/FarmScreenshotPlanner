@@ -83,7 +83,7 @@ public class ScreenshotOrchestrator
             _mod.LogFile.Info($"Screenshot saved: {savePath}");
             _mod.Monitor.Log($"Screenshot saved: {savePath}", LogLevel.Info);
 
-            Game1.activeClickableMenu = new ScreenshotResultMenu(savePath, _mod);
+            Game1.activeClickableMenu = new ScreenshotResultMenu(savePath, prefix, _mod);
         }
         catch (Exception ex)
         {

@@ -73,16 +73,20 @@ public class MapRenderer
 
             foreach (var (tile, obj) in location.Objects.Pairs)
             {
+                if (obj is null) continue;
                 int y = (int)tile.Y;
                 int x = (int)tile.X * 64;
-                drawItems.Add((y, () => obj.draw(manualSB, x, y * 64)));
+                int py = (int)tile.Y * 64;
+                drawItems.Add((y, () => obj.draw(manualSB, x, py, 1f)));
             }
 
             foreach (var furniture in location.furniture)
             {
+                if (furniture is null) continue;
                 int y = (int)furniture.TileLocation.Y;
                 int x = (int)furniture.TileLocation.X * 64;
-                drawItems.Add((y, () => furniture.draw(manualSB, x, y * 64)));
+                int py = (int)furniture.TileLocation.Y * 64;
+                drawItems.Add((y, () => furniture.draw(manualSB, x, py, 1f)));
             }
 
             drawItems.Sort((a, b) => a.Y.CompareTo(b.Y));

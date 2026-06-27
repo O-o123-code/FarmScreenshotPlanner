@@ -19,6 +19,8 @@ public class ModEntry : Mod
         LogFile.Info("Mod initializing...");
 
         Config = helper.ReadConfig<ModConfig>();
+        if (Config.SelectedLocation == "Current Location")
+            Config.SelectedLocation = helper.Translation.Get("config.current_location");
 
         helper.Events.Input.ButtonsChanged += OnButtonsChanged;
         helper.ConsoleCommands.Add("farm_screenshot", "Capture a full-resolution farm screenshot.\n\nUsage: farm_screenshot [location_name]\nIf no location is specified, uses the configured region.", OnFarmScreenshotCommand);

@@ -9,11 +9,12 @@ namespace FarmScreenshotPlanner;
 public class ScreenshotResultMenu : IClickableMenu
 {
     private readonly string _filePath;
+    private readonly string _title;
     private readonly ModEntry _mod;
     private readonly List<ClickableComponent> _buttons = new();
     private int _cooldownTimer;
 
-    public ScreenshotResultMenu(string filePath, ModEntry mod)
+    public ScreenshotResultMenu(string filePath, string locationDisplayName, ModEntry mod)
         : base(
             (Game1.uiViewport.Width - 480) / 2,
             (Game1.uiViewport.Height - 220) / 2,
@@ -21,6 +22,7 @@ public class ScreenshotResultMenu : IClickableMenu
     {
         _filePath = filePath;
         _mod = mod;
+        _title = string.Format(mod.Helper.Translation.Get("ui.saved_title"), locationDisplayName);
 
         exitFunction = null;
         _cooldownTimer = 0;
@@ -98,28 +100,14 @@ public class ScreenshotResultMenu : IClickableMenu
         IClickableMenu.drawTextureBox(
             b, xPositionOnScreen, yPositionOnScreen, width, height, Color.White);
 
-        string title = Path.GetFileName(_filePath);
-        Vector2 titleSize = Game1.dialogueFont.MeasureString(title);
-        Utility.drawTextWithShadow(b, title, Game1.dialogueFont,
+        Vector2 titleSize = Game1.dialogueFont.MeasureString(_title);
+        Utility.drawTextWithShadow(b, _title, Game1.dialogueFont,
             new Vector2(
                 xPositionOnScreen + (width - titleSize.X) / 2,
                 yPositionOnScreen + 28),
             Game1.textColor);
 
-        string pathText = _filePath;
-        float maxPathW = width - 32;
-        var font = Game1.smallFont;
-        if (font.MeasureString(pathText).X > maxPathW)
-        {
-            int maxLen = (int)(pathText.Length * maxPathW / font.MeasureString(pathText).X) - 3;
-            if (maxLen < 1) maxLen = 1;
-            while (font.MeasureString("..." + pathText[^maxLen..]).X > maxPathW)
-                maxLen--;
-            pathText = "..." + pathText[^maxLen..];
-        }
-        Utility.drawTextWithShadow(b, pathText, Game1.smallFont,
-            new Vector2(xPositionOnScreen + 16, yPositionOnScreen + 80),
-            Game1.textColor);
+
 
         foreach (var btn in _buttons)
         {
