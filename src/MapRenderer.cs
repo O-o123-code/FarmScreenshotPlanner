@@ -94,6 +94,7 @@ public class MapRenderer
         var layer = map.GetLayer(layerId);
         if (layer is null) return;
 
+        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
         displayDevice.BeginScene(spriteBatch);
         for (int tx = 0; tx < layer.LayerWidth; tx++)
         {
@@ -105,5 +106,6 @@ public class MapRenderer
             }
         }
         displayDevice.EndScene();
+        spriteBatch.End();
     }
 }
