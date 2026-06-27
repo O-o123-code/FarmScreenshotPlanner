@@ -1,5 +1,6 @@
 using StardewModdingAPI;
 using StardewModdingAPI.Utilities;
+using StardewValley;
 
 namespace FarmScreenshotPlanner;
 
@@ -73,8 +74,10 @@ public class ConfigMenu
             val => _config.Hotkey = val,
             () => _helper.Translation.Get("gmcm.hotkey"));
 
+        var lang = Game1.content.GetCurrentLanguage();
+        bool preferLocalized = lang == LocalizedContentManager.LanguageCode.zh;
         var locations = _mod.LocationService.GetLocations()
-            .Select(loc => _mod.LocationService.GetDisplayTitle(loc))
+            .Select(loc => preferLocalized ? (loc.GetDisplayName() ?? loc.Name ?? "Unknown") : (loc.Name ?? "Unknown"))
             .Prepend(_helper.Translation.Get("config.current_location"))
             .ToArray();
 

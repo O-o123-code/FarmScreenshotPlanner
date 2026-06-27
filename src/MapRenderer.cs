@@ -49,31 +49,38 @@ public class MapRenderer
 
             Logger?.Debug("Map layers (Back, Buildings, Front, AlwaysFront) drawn.");
 
+            Logger?.Debug($"Viewport before manual batch: ({Game1.viewport.X},{Game1.viewport.Y},{Game1.viewport.Width},{Game1.viewport.Height})");
+            Logger?.Debug($"RT check: Set={gd.GetRenderTargets().Length > 0}");
+
             var drawItems = new List<(int Y, Action Draw)>();
-            var manualSB = new SpriteBatch(gd);
-            manualSB.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+            int tfCount = 0;
 
             foreach (var building in location.buildings)
             {
                 int y = building.tileY.Value;
-                drawItems.Add((y, () => building.draw(manualSB)));
+                drawItems.Add((y, () => building.draw(mapSB)));
             }
 
             foreach (var (tile, feature) in location.terrainFeatures.Pairs)
             {
                 int y = (int)tile.Y;
-                drawItems.Add((y, () => feature.draw(manualSB)));
+                drawItems.Add((y, () => feature.draw(mapSB)));
 
-                if (feature is Tree tree && tree.growthStage.Value >= 5 && !tree.stump.Value)
+                if (feature is Tree tree)
                 {
-                    drawItems.Add((y + 1, () => feature.draw(manualSB)));
+                    Logger?.Debug($"Tree: tile({tile.X},{tile.Y}) growthStage={tree.growthStage.Value} stump={tree.stump.Value}");
+                    if (tree.growthStage.Value >= 5 && !tree.stump.Value)
+                        drawItems.Add((y + 1, () => feature.draw(mapSB)));
                 }
+
+                if (tfCount++ < 3)
+                    Logger?.Debug($"  TF[{tfCount}]: type={feature.GetType().Name} tile({tile.X},{tile.Y})");
             }
 
             foreach (var feature in location.largeTerrainFeatures)
             {
                 int y = (int)feature.Tile.Y;
-                drawItems.Add((y, () => feature.draw(manualSB)));
+                drawItems.Add((y, () => feature.draw(mapSB)));
             }
 
             if (location is Farm farm)
@@ -81,37 +88,48 @@ public class MapRenderer
                 foreach (var clump in farm.resourceClumps)
                 {
                     int y = (int)clump.Tile.Y;
-                    drawItems.Add((y, () => clump.draw(manualSB)));
+                    drawItems.Add((y, () => clump.draw(mapSB)));
                 }
             }
 
+            int objCount = 0;
             foreach (var (tile, obj) in location.Objects.Pairs)
             {
                 if (obj is null) continue;
                 int y = (int)tile.Y;
                 int x = (int)tile.X * 64;
                 int py = (int)tile.Y * 64;
-                drawItems.Add((y, () => obj.draw(manualSB, x, py, 1f)));
+                drawItems.Add((y, () => obj.draw(mapSB, x, py, 1f)));
+
+                if (objCount++ < 5)
+                    Logger?.Debug($"  Object[{objCount}]: tile({tile.X},{tile.Y}) type={obj.GetType().Name} name={obj.Name} parentSheetIndex={obj.ParentSheetIndex} category={obj.Category}");
             }
 
+            int furCount = 0;
             foreach (var furniture in location.furniture)
             {
                 if (furniture is null) continue;
                 int y = (int)furniture.TileLocation.Y;
                 int x = (int)furniture.TileLocation.X * 64;
                 int py = (int)furniture.TileLocation.Y * 64;
-                drawItems.Add((y, () => furniture.draw(manualSB, x, py, 1f)));
+                drawItems.Add((y, () => furniture.draw(mapSB, x, py, 1f)));
+
+                if (furCount++ < 5)
+                    Logger?.Debug($"  Furniture[{furCount}]: tile({furniture.TileLocation.X},{furniture.TileLocation.Y}) type={furniture.GetType().Name} name={furniture.Name}");
             }
 
-            Logger?.Debug($"Manual overrides collected: B:{location.buildings.Count} TF:{location.terrainFeatures.Count()} LTF:{location.largeTerrainFeatures.Count} O:{location.Objects.Count()} F:{location.furniture.Count}");
+            Logger?.Debug($"Manual overrides collected: B:{location.buildings.Count} TF:{tfCount} LTF:{location.largeTerrainFeatures.Count} O:{objCount} F:{furCount}");
+
+            mapSB.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+
+            mapSB.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(0, 0, 128, 128), Color.Magenta);
 
             drawItems.Sort((a, b) => a.Y.CompareTo(b.Y));
             foreach (var (_, draw) in drawItems)
             {
                 draw();
             }
-
-            manualSB.End();
+            mapSB.End();
 
             Logger?.Debug("Manual overrides drawn.");
         }
