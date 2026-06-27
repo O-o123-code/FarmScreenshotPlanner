@@ -4,6 +4,10 @@ using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
+using xTile;
+using xTile.Dimensions;
+using xTile.Display;
+using xTile.Layers;
 
 namespace FarmScreenshotPlanner;
 
@@ -32,11 +36,9 @@ public class MapRenderer
             var displayDevice = Game1.mapDisplayDevice;
             using var mapSB = new SpriteBatch(gd);
 
-            displayDevice.BeginScene(mapSB);
-            ((dynamic)displayDevice).DrawMap(map, "Back", false);
-            ((dynamic)displayDevice).DrawMap(map, "Buildings", false);
-            ((dynamic)displayDevice).DrawMap(map, "Front", false);
-            displayDevice.EndScene();
+            DrawMapLayer(displayDevice, mapSB, map, "Back");
+            DrawMapLayer(displayDevice, mapSB, map, "Buildings");
+            DrawMapLayer(displayDevice, mapSB, map, "Front");
 
             using var manualSB = new SpriteBatch(gd);
             manualSB.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
@@ -76,9 +78,7 @@ public class MapRenderer
 
             manualSB.End();
 
-            displayDevice.BeginScene(mapSB);
-            ((dynamic)displayDevice).DrawMap(map, "AlwaysFront", false);
-            displayDevice.EndScene();
+            DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
         }
         finally
         {
@@ -87,5 +87,23 @@ public class MapRenderer
         }
 
         return new MapRenderResult(fullRT, mapPixelW, mapPixelH);
+    }
+
+    private static void DrawMapLayer(IDisplayDevice displayDevice, SpriteBatch spriteBatch, Map map, string layerId)
+    {
+        var layer = map.GetLayer(layerId);
+        if (layer is null) return;
+
+        displayDevice.BeginScene(spriteBatch);
+        for (int tx = 0; tx < layer.LayerWidth; tx++)
+        {
+            for (int ty = 0; ty < layer.LayerHeight; ty++)
+            {
+                var tile = layer.Tiles[tx, ty];
+                if (tile is null) continue;
+                displayDevice.DrawTile(tile, new Location(tx * 64, ty * 64), 0f);
+            }
+        }
+        displayDevice.EndScene();
     }
 }

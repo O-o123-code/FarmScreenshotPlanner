@@ -14,7 +14,7 @@
   "gmcm.save_path_label": "Save Path (read-only)",
   "log.gmcm_not_found": "GMCM not installed, using config.json",
   "log.screenshot_saved": "Screenshot saved: {path}",
-  "log.screenshot_failed": "Screenshot failed: {reason}",
+  "log.screenshot_failed": "Screenshot failed: {0}",
   "log.size_warning": "Map size {w}x{h} exceeds safety limit, scaled to {w2}x{h2}",
   "error.disk_full": "Insufficient disk space or permission denied."
 }

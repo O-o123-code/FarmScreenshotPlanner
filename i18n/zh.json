@@ -14,7 +14,7 @@
   "gmcm.save_path_label": "保存路径(只读)",
   "log.gmcm_not_found": "GMCM 未安装, 使用 config.json",
   "log.screenshot_saved": "截图已保存: {path}",
-  "log.screenshot_failed": "截图失败: {reason}",
+  "log.screenshot_failed": "截图失败: {0}",
   "log.size_warning": "地图尺寸 {w}x{h} 超过安全阈值, 已缩至 {w2}x{h2}",
   "error.disk_full": "磁盘空间不足或权限不足"
 }
