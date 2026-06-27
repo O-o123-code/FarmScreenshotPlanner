@@ -11,6 +11,7 @@ public class ScreenshotResultMenu : IClickableMenu
     private readonly string _filePath;
     private readonly ModEntry _mod;
     private readonly List<ClickableComponent> _buttons = new();
+    private int _cooldownTimer;
 
     public ScreenshotResultMenu(string filePath, ModEntry mod)
         : base(
@@ -22,6 +23,7 @@ public class ScreenshotResultMenu : IClickableMenu
         _mod = mod;
 
         exitFunction = null;
+        _cooldownTimer = 0;
 
         string openLabel = mod.Helper.Translation.Get("ui.open_folder");
         string closeLabel = mod.Helper.Translation.Get("ui.close");
@@ -53,6 +55,13 @@ public class ScreenshotResultMenu : IClickableMenu
         });
     }
 
+    public override void update(GameTime time)
+    {
+        base.update(time);
+        if (_cooldownTimer > 0)
+            _cooldownTimer -= time.ElapsedGameTime.Milliseconds;
+    }
+
     public override void receiveKeyPress(Keys key)
     {
         if (key == Keys.Escape) return;
@@ -66,7 +75,11 @@ public class ScreenshotResultMenu : IClickableMenu
             if (!btn.containsPoint(x, y)) continue;
 
             if (btn.name == "open_folder")
+            {
+                if (_cooldownTimer > 0) return;
+                _cooldownTimer = 1500;
                 PlatformHelper.RevealFileInExplorer(_filePath);
+            }
             else if (btn.name == "close")
                 Game1.activeClickableMenu = null;
 

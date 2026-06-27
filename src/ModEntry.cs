@@ -42,7 +42,7 @@ public class ModEntry : Mod
         if (!Context.IsWorldReady) return;
         if (Config.Hotkey.Keybinds.Any(k => k.Buttons.Any(b => e.Pressed.Contains(b))))
         {
-            Orchestrator.ExecuteCapture();
+            Orchestrator.ExecuteCapture(Config.SelectedLocation);
         }
     }
 

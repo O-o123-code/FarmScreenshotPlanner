@@ -1,12 +1,15 @@
 {
   "hud.rendering": "Generating image, please wait...",
   "hud.menu_open": "Please close the current menu first.",
+  "hud.saved_brief": "Screenshot saved!",
   "hud.saved": "{title} saved to: {path}",
   "ui.open_folder": "Open Folder",
   "ui.close": "Close",
+  "config.current_location": "Current Location",
   "gmcm.hotkey": "Screenshot Hotkey",
   "gmcm.location": "Screenshot Region",
   "gmcm.scale": "Output Scale",
+  "gmcm.scale_tooltip": "Higher scales produce larger images. 100% on large maps may cause lag or memory issues.",
   "gmcm.grid_enabled": "Enable Grid on Screenshot",
   "gmcm.grid_color": "Grid Color",
   "gmcm.grid_thickness": "Grid Thickness",
@@ -16,5 +19,14 @@
   "log.screenshot_saved": "Screenshot saved: {path}",
   "log.screenshot_failed": "Screenshot failed: {0}",
   "log.size_warning": "Map size {w}x{h} exceeds safety limit, scaled to {w2}x{h2}",
-  "error.disk_full": "Insufficient disk space or permission denied."
+  "error.disk_full": "Insufficient disk space or permission denied.",
+  "grid.color.00000060": "Black",
+  "grid.color.FFFFFF60": "White",
+  "grid.color.FF000060": "Red",
+  "grid.color.0000FF60": "Blue",
+  "grid.color.00FF0060": "Green",
+  "grid.color.00FFFF60": "Cyan",
+  "grid.color.FF00FF60": "Magenta",
+  "grid.color.FFA50060": "Orange",
+  "grid.color.80008060": "Purple"
 }

@@ -78,6 +78,7 @@ public class ScreenshotOrchestrator
 
             _freezer.Restore();
             _hud.Hide();
+            _hud.Show(_mod.Helper.Translation.Get("hud.saved_brief"));
 
             _mod.LogFile.Info($"Screenshot saved: {savePath}");
             _mod.Monitor.Log($"Screenshot saved: {savePath}", LogLevel.Info);
@@ -109,7 +110,8 @@ public class ScreenshotOrchestrator
 
     private GameLocation? ResolveLocation(string? locationName)
     {
-        if (string.IsNullOrEmpty(locationName) || locationName == "Current Location")
+        string internalMarker = _mod.Helper.Translation.Get("config.current_location");
+        if (string.IsNullOrEmpty(locationName) || locationName == "Current Location" || locationName == internalMarker)
             return Game1.currentLocation;
 
         foreach (var loc in _mod.LocationService.GetLocations())

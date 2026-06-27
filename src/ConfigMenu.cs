@@ -1,4 +1,5 @@
 using StardewModdingAPI;
+using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 
 namespace FarmScreenshotPlanner;
@@ -19,6 +20,9 @@ public class ConfigMenu
 {
     private readonly ModEntry _mod;
     private readonly ModConfig _config;
+    private IModHelper? _helper;
+    private IGenericModConfigMenuApi? _api;
+    private bool _fullRegistered;
 
     public ConfigMenu(ModEntry mod)
     {
@@ -34,24 +38,67 @@ public class ConfigMenu
             return;
         }
 
-        var api = helper.ModRegistry.GetApi<IGenericModConfigMenuApi>(
+        _helper = helper;
+        _api = helper.ModRegistry.GetApi<IGenericModConfigMenuApi>(
             "spacechase0.GenericModConfigMenu");
-        if (api is null) return;
+        if (_api is null) return;
 
+        RegisterMenu(includeLocations: false);
+
+        helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+    }
+
+    private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+    {
+        if (_api is null || _helper is null) return;
+        if (_fullRegistered) return;
+        _fullRegistered = true;
+
+        RegisterMenu(includeLocations: true);
+    }
+
+    private void RegisterMenu(bool includeLocations)
+    {
+        var api = _api!;
+        var helper = _helper!;
         var manifest = _mod.ModManifest;
 
         api.Register(manifest, Reset, Save);
 
-        api.AddSectionTitle(manifest, () => ((string)helper.Translation.Get("gmcm.hotkey")));
+        api.AddSectionTitle(manifest, () => helper.Translation.Get("gmcm.hotkey"));
+
         api.AddKeybindList(manifest,
             () => _config.Hotkey,
             val => _config.Hotkey = val,
             () => helper.Translation.Get("gmcm.hotkey"));
 
-        api.AddTextOption(manifest,
-            () => _config.SelectedLocation,
-            val => _config.SelectedLocation = val,
-            () => helper.Translation.Get("gmcm.location"));
+        if (includeLocations)
+        {
+            var locNames = new List<string> { "Current Location" };
+            foreach (var loc in _mod.LocationService.GetLocations())
+            {
+                string title = _mod.LocationService.GetDisplayTitle(loc);
+                if (!locNames.Contains(title))
+                    locNames.Add(title);
+            }
+
+            api.AddTextOption(manifest,
+                () => _config.SelectedLocation,
+                val => _config.SelectedLocation = val,
+                () => helper.Translation.Get("gmcm.location"),
+                allowedValues: locNames.ToArray(),
+                formatAllowedValue: val =>
+                    val == "Current Location"
+                        ? helper.Translation.Get("config.current_location")
+                        : val);
+        }
+        else
+        {
+            api.AddTextOption(manifest,
+                () => _config.SelectedLocation,
+                val => _config.SelectedLocation = val,
+                () => helper.Translation.Get("gmcm.location"));
+        }
 
         string[] scaleChoices = { "25%", "50%", "75%", "100%" };
         api.AddTextOption(manifest,
@@ -62,18 +109,30 @@ public class ConfigMenu
                     _config.OutputScale = pct / 100f;
             },
             () => helper.Translation.Get("gmcm.scale"),
+            tooltip: () => helper.Translation.Get("gmcm.scale_tooltip"),
             allowedValues: scaleChoices);
 
-        api.AddSectionTitle(manifest, () => ((string)helper.Translation.Get("gmcm.grid_enabled")));
+        api.AddSectionTitle(manifest, () => helper.Translation.Get("gmcm.grid_enabled"));
         api.AddBoolOption(manifest,
             () => _config.Grid.Enabled,
             val => _config.Grid.Enabled = val,
             () => helper.Translation.Get("gmcm.grid_enabled"));
 
+        string[] colorPresets = {
+            "00000060", "FFFFFF60", "FF000060", "0000FF60",
+            "00FF0060", "00FFFF60", "FF00FF60", "FFA50060", "80008060"
+        };
         api.AddTextOption(manifest,
             () => _config.Grid.Color,
             val => _config.Grid.Color = val,
-            () => helper.Translation.Get("gmcm.grid_color"));
+            () => helper.Translation.Get("gmcm.grid_color"),
+            allowedValues: colorPresets,
+            formatAllowedValue: val =>
+            {
+                string key = "grid.color." + val;
+                string t = helper.Translation.Get(key);
+                return t != key ? t : val;
+            });
 
         api.AddNumberOption(manifest,
             () => _config.Grid.Thickness,

@@ -1,12 +1,15 @@
 {
   "hud.rendering": "正在生成图片, 请稍候...",
   "hud.menu_open": "请先关闭当前菜单后再截图",
+  "hud.saved_brief": "图片已保存！",
   "hud.saved": "{title}已保存至: {path}",
   "ui.open_folder": "打开文件夹",
   "ui.close": "关闭",
+  "config.current_location": "当前所在区域",
   "gmcm.hotkey": "截图快捷键",
   "gmcm.location": "截图区域",
   "gmcm.scale": "输出缩放",
+  "gmcm.scale_tooltip": "缩放越大图片越大，100% 在大地图上可能导致卡顿或内存问题。",
   "gmcm.grid_enabled": "截图时启用网格",
   "gmcm.grid_color": "网格颜色",
   "gmcm.grid_thickness": "网格粗细",
@@ -16,5 +19,14 @@
   "log.screenshot_saved": "截图已保存: {path}",
   "log.screenshot_failed": "截图失败: {0}",
   "log.size_warning": "地图尺寸 {w}x{h} 超过安全阈值, 已缩至 {w2}x{h2}",
-  "error.disk_full": "磁盘空间不足或权限不足"
+  "error.disk_full": "磁盘空间不足或权限不足",
+  "grid.color.00000060": "黑色",
+  "grid.color.FFFFFF60": "白色",
+  "grid.color.FF000060": "红色",
+  "grid.color.0000FF60": "蓝色",
+  "grid.color.00FF0060": "绿色",
+  "grid.color.00FFFF60": "青色",
+  "grid.color.FF00FF60": "品红",
+  "grid.color.FFA50060": "橙色",
+  "grid.color.80008060": "紫色"
 }

@@ -40,40 +40,55 @@ public class MapRenderer
             DrawMapLayer(displayDevice, mapSB, map, "Buildings");
             DrawMapLayer(displayDevice, mapSB, map, "Front");
 
-            using var manualSB = new SpriteBatch(gd);
+            var drawItems = new List<(int Y, Action Draw)>();
+            var manualSB = new SpriteBatch(gd);
             manualSB.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
 
             foreach (var building in location.buildings)
             {
-                building.draw(manualSB);
+                int y = building.tileY.Value;
+                drawItems.Add((y, () => building.draw(manualSB)));
             }
 
             foreach (var (tile, feature) in location.terrainFeatures.Pairs)
             {
-                feature.draw(manualSB);
+                int y = (int)tile.Y;
+                drawItems.Add((y, () => feature.draw(manualSB)));
             }
 
             foreach (var feature in location.largeTerrainFeatures)
             {
-                feature.draw(manualSB);
+                int y = (int)feature.Tile.Y;
+                drawItems.Add((y, () => feature.draw(manualSB)));
             }
 
             if (location is Farm farm)
             {
                 foreach (var clump in farm.resourceClumps)
                 {
-                    clump.draw(manualSB);
+                    int y = (int)clump.Tile.Y;
+                    drawItems.Add((y, () => clump.draw(manualSB)));
                 }
             }
 
             foreach (var (tile, obj) in location.Objects.Pairs)
             {
-                obj.draw(manualSB, (int)tile.X * 64, (int)tile.Y * 64);
+                int y = (int)tile.Y;
+                int x = (int)tile.X * 64;
+                drawItems.Add((y, () => obj.draw(manualSB, x, y * 64)));
             }
 
             foreach (var furniture in location.furniture)
             {
-                furniture.draw(manualSB, (int)furniture.TileLocation.X * 64, (int)furniture.TileLocation.Y * 64);
+                int y = (int)furniture.TileLocation.Y;
+                int x = (int)furniture.TileLocation.X * 64;
+                drawItems.Add((y, () => furniture.draw(manualSB, x, y * 64)));
+            }
+
+            drawItems.Sort((a, b) => a.Y.CompareTo(b.Y));
+            foreach (var (_, draw) in drawItems)
+            {
+                draw();
             }
 
             manualSB.End();
