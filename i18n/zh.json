@@ -1,0 +1,20 @@
+{
+  "hud.rendering": "正在生成图片, 请稍候...",
+  "hud.menu_open": "请先关闭当前菜单后再截图",
+  "hud.saved": "{title}已保存至: {path}",
+  "ui.open_folder": "打开文件夹",
+  "ui.close": "关闭",
+  "gmcm.hotkey": "截图快捷键",
+  "gmcm.location": "截图区域",
+  "gmcm.scale": "输出缩放",
+  "gmcm.grid_enabled": "截图时启用网格",
+  "gmcm.grid_color": "网格颜色",
+  "gmcm.grid_thickness": "网格粗细",
+  "gmcm.grid_opacity": "网格透明度",
+  "gmcm.save_path_label": "保存路径(只读)",
+  "log.gmcm_not_found": "GMCM 未安装, 使用 config.json",
+  "log.screenshot_saved": "截图已保存: {path}",
+  "log.screenshot_failed": "截图失败: {reason}",
+  "log.size_warning": "地图尺寸 {w}x{h} 超过安全阈值, 已缩至 {w2}x{h2}",
+  "error.disk_full": "磁盘空间不足或权限不足"
+}

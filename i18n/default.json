@@ -1,0 +1,20 @@
+{
+  "hud.rendering": "Generating image, please wait...",
+  "hud.menu_open": "Please close the current menu first.",
+  "hud.saved": "{title} saved to: {path}",
+  "ui.open_folder": "Open Folder",
+  "ui.close": "Close",
+  "gmcm.hotkey": "Screenshot Hotkey",
+  "gmcm.location": "Screenshot Region",
+  "gmcm.scale": "Output Scale",
+  "gmcm.grid_enabled": "Enable Grid on Screenshot",
+  "gmcm.grid_color": "Grid Color",
+  "gmcm.grid_thickness": "Grid Thickness",
+  "gmcm.grid_opacity": "Grid Opacity",
+  "gmcm.save_path_label": "Save Path (read-only)",
+  "log.gmcm_not_found": "GMCM not installed, using config.json",
+  "log.screenshot_saved": "Screenshot saved: {path}",
+  "log.screenshot_failed": "Screenshot failed: {reason}",
+  "log.size_warning": "Map size {w}x{h} exceeds safety limit, scaled to {w2}x{h2}",
+  "error.disk_full": "Insufficient disk space or permission denied."
+}

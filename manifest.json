@@ -1,0 +1,15 @@
+{
+  "Name": "Farm Screenshot Planner",
+  "Author": "kaixindawanglpc",
+  "Version": "1.0.0",
+  "Description": "Capture full-resolution farm screenshots with grid overlay, custom regions, and instant file access.",
+  "UniqueID": "kaixindawanglpc.FarmScreenshotPlanner",
+  "EntryDll": "FarmScreenshotPlanner.dll",
+  "MinimumApiVersion": "4.0.0",
+  "Dependencies": [
+    {
+      "UniqueID": "spacechase0.GenericModConfigMenu",
+      "IsRequired": false
+    }
+  ]
+}
