@@ -15,8 +15,12 @@ public record MapRenderResult(RenderTarget2D FullRT, int MapPixelW, int MapPixel
 
 public class MapRenderer
 {
+    public RollingFileLogger? Logger { get; set; }
+
     public MapRenderResult Render(GameLocation location)
     {
+        Logger?.Debug($"MapRenderer.Render started for location: {location.Name ?? "null"}");
+
         var map = location.Map;
         int mapPixelW = map.Layers[0].LayerWidth * 64;
         int mapPixelH = map.Layers[0].LayerHeight * 64;
@@ -27,6 +31,8 @@ public class MapRenderer
         var fullRT = new RenderTarget2D(gd, mapPixelW, mapPixelH, false, SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
         gd.SetRenderTarget(fullRT);
         gd.Clear(Color.White);
+
+        Logger?.Debug($"fullRT created: {mapPixelW}x{mapPixelH}");
 
         var prevViewport = Game1.viewport;
         Game1.viewport = new xTile.Dimensions.Rectangle(0, 0, mapPixelW, mapPixelH);
@@ -39,6 +45,9 @@ public class MapRenderer
             DrawMapLayer(displayDevice, mapSB, map, "Back");
             DrawMapLayer(displayDevice, mapSB, map, "Buildings");
             DrawMapLayer(displayDevice, mapSB, map, "Front");
+            DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
+
+            Logger?.Debug("Map layers (Back, Buildings, Front, AlwaysFront) drawn.");
 
             var drawItems = new List<(int Y, Action Draw)>();
             var manualSB = new SpriteBatch(gd);
@@ -54,6 +63,11 @@ public class MapRenderer
             {
                 int y = (int)tile.Y;
                 drawItems.Add((y, () => feature.draw(manualSB)));
+
+                if (feature is Tree tree && tree.growthStage.Value >= 5 && !tree.stump.Value)
+                {
+                    drawItems.Add((y + 1, () => feature.draw(manualSB)));
+                }
             }
 
             foreach (var feature in location.largeTerrainFeatures)
@@ -89,6 +103,8 @@ public class MapRenderer
                 drawItems.Add((y, () => furniture.draw(manualSB, x, py, 1f)));
             }
 
+            Logger?.Debug($"Manual overrides collected: B:{location.buildings.Count} TF:{location.terrainFeatures.Count()} LTF:{location.largeTerrainFeatures.Count} O:{location.Objects.Count()} F:{location.furniture.Count}");
+
             drawItems.Sort((a, b) => a.Y.CompareTo(b.Y));
             foreach (var (_, draw) in drawItems)
             {
@@ -97,7 +113,7 @@ public class MapRenderer
 
             manualSB.End();
 
-            DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
+            Logger?.Debug("Manual overrides drawn.");
         }
         finally
         {
@@ -105,6 +121,7 @@ public class MapRenderer
             gd.SetRenderTargets(originalTargets);
         }
 
+        Logger?.Debug("MapRenderer.Render completed.");
         return new MapRenderResult(fullRT, mapPixelW, mapPixelH);
     }
 

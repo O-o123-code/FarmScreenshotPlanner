@@ -6,6 +6,7 @@ namespace FarmScreenshotPlanner;
 public interface IGenericModConfigMenuApi
 {
     void Register(IManifest mod, Action reset, Action save, bool titleScreenOnly = false);
+    void Unregister(IManifest mod);
     void AddSectionTitle(IManifest mod, Func<string> text, Func<string>? tooltip = null);
     void AddKeybindList(IManifest mod, Func<KeybindList> getValue, Action<KeybindList> setValue, Func<string> name, Func<string>? tooltip = null, string? fieldId = null);
     void AddTextOption(IManifest mod, Func<string> getValue, Action<string> setValue, Func<string> name, Func<string>? tooltip = null, string[]? allowedValues = null, Func<string, string>? formatAllowedValue = null, string? fieldId = null);
@@ -19,6 +20,8 @@ public class ConfigMenu
 {
     private readonly ModEntry _mod;
     private readonly ModConfig _config;
+    private IGenericModConfigMenuApi? _api;
+    private IModHelper? _helper;
 
     public ConfigMenu(ModEntry mod)
     {
@@ -34,78 +37,104 @@ public class ConfigMenu
             return;
         }
 
-        var api = helper.ModRegistry.GetApi<IGenericModConfigMenuApi>(
+        _api = helper.ModRegistry.GetApi<IGenericModConfigMenuApi>(
             "spacechase0.GenericModConfigMenu");
-        if (api is null) return;
+        if (_api is null) return;
+        _helper = helper;
+
+        helper.Events.GameLoop.SaveLoaded += OnSaveChanged;
+        helper.Events.GameLoop.ReturnedToTitle += OnSaveChanged;
+
+        RebuildMenu();
+    }
+
+    private void OnSaveChanged(object? sender, EventArgs e) => RebuildMenu();
+
+    private void RebuildMenu()
+    {
+        if (_api is null || _helper is null) return;
+
+        _api.Unregister(_mod.ModManifest);
+        _api.Register(_mod.ModManifest, Reset, Save);
+
+        if (!Context.IsWorldReady)
+        {
+            _api.AddParagraph(_mod.ModManifest,
+                () => _helper.Translation.Get("gmcm.not_ready"));
+            return;
+        }
 
         var manifest = _mod.ModManifest;
 
-        api.Register(manifest, Reset, Save);
+        _api.AddSectionTitle(manifest, () => _helper.Translation.Get("gmcm.hotkey"));
 
-        api.AddSectionTitle(manifest, () => helper.Translation.Get("gmcm.hotkey"));
-
-        api.AddKeybindList(manifest,
+        _api.AddKeybindList(manifest,
             () => _config.Hotkey,
             val => _config.Hotkey = val,
-            () => helper.Translation.Get("gmcm.hotkey"));
+            () => _helper.Translation.Get("gmcm.hotkey"));
 
-        api.AddTextOption(manifest,
+        var locations = _mod.LocationService.GetLocations()
+            .Select(loc => _mod.LocationService.GetDisplayTitle(loc))
+            .Prepend(_helper.Translation.Get("config.current_location"))
+            .ToArray();
+
+        _api.AddTextOption(manifest,
             () => _config.SelectedLocation,
             val => _config.SelectedLocation = val,
-            () => helper.Translation.Get("gmcm.location"),
-            tooltip: () => helper.Translation.Get("gmcm.location_tooltip"));
+            () => _helper.Translation.Get("gmcm.location"),
+            allowedValues: locations);
 
         string[] scaleChoices = { "25%", "50%", "75%", "100%" };
-        api.AddTextOption(manifest,
+        _api.AddTextOption(manifest,
             () => (int)(_config.OutputScale * 100) + "%",
             val =>
             {
                 if (int.TryParse(val.Replace("%", ""), out int pct))
                     _config.OutputScale = pct / 100f;
             },
-            () => helper.Translation.Get("gmcm.scale"),
-            tooltip: () => helper.Translation.Get("gmcm.scale_tooltip"),
+            () => _helper.Translation.Get("gmcm.scale"),
+            tooltip: () => _helper.Translation.Get("gmcm.scale_tooltip"),
             allowedValues: scaleChoices);
 
-        api.AddSectionTitle(manifest, () => helper.Translation.Get("gmcm.grid_enabled"));
-        api.AddBoolOption(manifest,
+        _api.AddSectionTitle(manifest, () => _helper.Translation.Get("gmcm.grid_enabled"));
+        _api.AddBoolOption(manifest,
             () => _config.Grid.Enabled,
             val => _config.Grid.Enabled = val,
-            () => helper.Translation.Get("gmcm.grid_enabled"));
+            () => _helper.Translation.Get("gmcm.grid_enabled"));
 
         string[] colorPresets = {
             "00000060", "FFFFFF60", "FF000060", "0000FF60",
             "00FF0060", "00FFFF60", "FF00FF60", "FFA50060", "80008060"
         };
-        api.AddTextOption(manifest,
+        _api.AddTextOption(manifest,
             () => _config.Grid.Color,
             val => _config.Grid.Color = val,
-            () => helper.Translation.Get("gmcm.grid_color"),
+            () => _helper.Translation.Get("gmcm.grid_color"),
             allowedValues: colorPresets,
             formatAllowedValue: val =>
             {
                 string key = "grid.color." + val;
-                string t = helper.Translation.Get(key);
+                string t = _helper.Translation.Get(key);
                 return t != key ? t : val;
             });
 
-        api.AddNumberOption(manifest,
+        _api.AddNumberOption(manifest,
             () => _config.Grid.Thickness,
             val => _config.Grid.Thickness = val,
-            () => helper.Translation.Get("gmcm.grid_thickness"),
+            () => _helper.Translation.Get("gmcm.grid_thickness"),
             min: 1, max: 3, interval: 1);
 
-        api.AddNumberOption(manifest,
+        _api.AddNumberOption(manifest,
             () => _config.Grid.Opacity,
             val => _config.Grid.Opacity = val,
-            () => helper.Translation.Get("gmcm.grid_opacity"),
+            () => _helper.Translation.Get("gmcm.grid_opacity"),
             min: 0f, max: 1f, interval: 0.05f);
 
         string savePathDisplay = string.IsNullOrEmpty(_config.SavePath)
             ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
             : _config.SavePath;
-        api.AddParagraph(manifest, () =>
-            helper.Translation.Get("gmcm.save_path_label") + ": " + savePathDisplay);
+        _api.AddParagraph(manifest, () =>
+            _helper.Translation.Get("gmcm.save_path_label") + ": " + savePathDisplay);
     }
 
     private void Reset()
@@ -121,8 +150,5 @@ public class ConfigMenu
         _config.Grid.Opacity = defaults.Grid.Opacity;
     }
 
-    private void Save()
-    {
-        _mod.Helper.WriteConfig(_config);
-    }
+    private void Save() => _mod.Helper.WriteConfig(_config);
 }

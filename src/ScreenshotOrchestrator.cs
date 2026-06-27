@@ -21,6 +21,7 @@ public class ScreenshotOrchestrator
     public ScreenshotOrchestrator(ModEntry mod)
     {
         _mod = mod;
+        _mapRenderer.Logger = _mod.LogFile;
     }
 
     public void ExecuteCapture(string? locationName = null)
@@ -41,6 +42,8 @@ public class ScreenshotOrchestrator
         _isRendering = true;
         try
         {
+            _mod.LogFile.Debug($"ExecuteCapture triggered, locationName={(locationName ?? "null")}");
+
             var location = ResolveLocation(locationName);
             if (location is null)
             {
@@ -49,12 +52,16 @@ public class ScreenshotOrchestrator
                 return;
             }
 
+            _mod.LogFile.Debug($"Resolved location: {location.Name ?? "null"}");
+
             _freezer.Freeze();
             _hud.Show(_mod.Helper.Translation.Get("hud.rendering"));
 
             var map = location.Map;
             int mapPixelW = map.Layers[0].LayerWidth * 64;
             int mapPixelH = map.Layers[0].LayerHeight * 64;
+
+            _mod.LogFile.Debug($"Map pixel size: {mapPixelW}x{mapPixelH}, output scale: {_mod.Config.OutputScale}");
 
             var fullRT = _mapRenderer.Render(location).FullRT;
 
@@ -70,10 +77,13 @@ public class ScreenshotOrchestrator
                 _mod.LogFile.Warn($"Map size {mapPixelW}x{mapPixelH} exceeds safety limit, scaled to {finalW}x{finalH}");
             }
 
+            _mod.LogFile.Debug($"Final output size: {finalW}x{finalH}");
+
             var finalRT = _tileGridRenderer.Apply(fullRT, _mod.Config, finalW, finalH, mapPixelW, mapPixelH);
 
             string saveDir = ResolveSaveDirectory();
             string prefix = _mod.LocationService.GetDisplayTitle(location);
+            _mod.LogFile.Debug($"Saving to directory: {saveDir}, prefix: {prefix}");
             string savePath = _saver.Save(finalRT, saveDir, prefix);
 
             _freezer.Restore();
