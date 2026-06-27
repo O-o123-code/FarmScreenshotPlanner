@@ -45,6 +45,7 @@ public class ScreenshotOrchestrator
             if (location is null)
             {
                 _mod.LogFile.Warn("No valid location found for screenshot.");
+                _isRendering = false;
                 return;
             }
 
