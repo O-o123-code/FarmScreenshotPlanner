@@ -1,13 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
-using StardewValley.Buildings;
-using StardewValley.Objects;
-using StardewValley.TerrainFeatures;
-using xTile;
-using xTile.Dimensions;
-using xTile.Display;
-using xTile.Layers;
 
 namespace FarmScreenshotPlanner;
 
@@ -17,6 +10,12 @@ public class MapRenderer
 {
     public RollingFileLogger? Logger { get; set; }
 
+    /// <summary>
+    /// 使用分块视口 + GameLocation.draw() 渲染完整地图。
+    /// 利用游戏自身的渲染管线处理所有图层（Back/Buildings/Front/实体/AlwaysFront），
+    /// 确保树木、建筑等复杂精灵的渲染与游戏画面完全一致，
+    /// 彻底消除手动图层渲染中 display device 与实体精灵的坐标系偏移问题。
+    /// </summary>
     public MapRenderResult Render(GameLocation location)
     {
         Logger?.Debug($"MapRenderer.Render started for location: {location.Name ?? "null"}");
@@ -28,259 +27,115 @@ public class MapRenderer
         var gd = Game1.graphics.GraphicsDevice;
         var originalTargets = gd.GetRenderTargets();
 
-        var fullRT = new RenderTarget2D(gd, mapPixelW, mapPixelH, false, SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
-        gd.SetRenderTarget(fullRT);
-        gd.Clear(Color.White);
+        var fullRT = new RenderTarget2D(gd, mapPixelW, mapPixelH, false,
+            SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
 
         Logger?.Debug($"fullRT created: {mapPixelW}x{mapPixelH}");
 
         var prevViewport = Game1.viewport;
-        Game1.viewport = new xTile.Dimensions.Rectangle(0, 0, mapPixelW, mapPixelH);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
-            var displayDevice = Game1.mapDisplayDevice;
-            using var mapSB = new SpriteBatch(gd);
+            int screenW = Game1.graphics.PreferredBackBufferWidth;
+            int screenH = Game1.graphics.PreferredBackBufferHeight;
 
-            // === Step 1-2: Back + Buildings 地图图层 ===
-            DrawMapLayer(displayDevice, mapSB, map, "Back");
-            DrawMapLayer(displayDevice, mapSB, map, "Buildings");
-            Logger?.Debug("Map layers (Back, Buildings) drawn.");
+            gd.SetRenderTarget(fullRT);
+            gd.Clear(Color.White);
 
-            // === Step 3: Front 地图图层 ===
-            // 室内: Front 层包含墙壁面片，需要在实体之后用 display device 绘制以遮挡紧贴墙壁的家具底部
-            // 室外: Front 层包含树冠瓦片，使用原生 SpriteBatch 绘制（绕过 display device）
-            //        确保瓦片坐标与实体精灵坐标使用同一坐标系（世界坐标），避免树冠错位
-            bool isIndoor = !location.IsOutdoors;
-            if (!isIndoor)
-            {
-                DrawFrontLayerNative(mapSB, map);
-                Logger?.Debug("Map layer (Front) drawn via native SpriteBatch (outdoor).");
-            }
+            // 暂时隐藏角色/NPC/动物，避免它们出现在截图中
+            var charBackup = new List<NPC>(location.characters);
+            location.characters.Clear();
+            Logger?.Debug($"Hidden {charBackup.Count} characters for screenshot.");
 
-            // === Step 4: 手动覆盖物 — 统一 Y 排序 ===
-            // 所有实体收集到一个列表，按 Y 坐标排序后统一绘制
-            // 这样 truffle(Y=50) 在果树(Y=37) 后面时，truffle 先绘制，果树后绘制覆盖
-            var entities = new List<(int SortY, Action<SpriteBatch> Draw, string Kind)>();
-
-            int tfCount = 0, objCount = 0, furCount = 0, buildCount = 0;
-
-            // 4a: Terrain Features (耕地, 树木, 作物)
-            int treeCount = 0, stumpSkipped = 0;
-            foreach (var (tile, feature) in location.terrainFeatures.Pairs)
-            {
-                if (feature is Tree tree)
-                {
-                    treeCount++;
-                    if (tree.stump.Value)
-                    {
-                        stumpSkipped++;
-                        continue;
-                    }
-                    // 诊断日志：记录前3棵树的详细信息
-                    if (treeCount - stumpSkipped <= 3)
-                    {
-                        Logger?.Debug($"  Tree#{treeCount - stumpSkipped}: tile=({tile.X},{tile.Y}) growth={tree.growthStage.Value} stump={tree.stump.Value}");
-                    }
-                }
-
-                int y = (int)tile.Y;
-                entities.Add((y, sb => feature.draw(Game1.spriteBatch), "TF"));
-                tfCount++;
-            }
-
-            // 4b: Large Terrain Features
-            foreach (var feature in location.largeTerrainFeatures)
-            {
-                int y = (int)feature.Tile.Y;
-                entities.Add((y, sb => feature.draw(Game1.spriteBatch), "LTF"));
-                tfCount++;
-            }
-            if (treeCount > 0)
-                Logger?.Debug($"  Trees: {treeCount} total, {stumpSkipped} stumps skipped, {treeCount - stumpSkipped} drawn");
-
-            // 4c: Resource Clumps (仅农场)
+            // 如果是农场，隐藏动物
+            List<FarmAnimal>? animalBackup = null;
             if (location is Farm farm)
             {
-                foreach (var clump in farm.resourceClumps)
+                animalBackup = new List<FarmAnimal>(farm.animals.Values);
+                farm.animals.Clear();
+                Logger?.Debug($"Hidden {animalBackup.Count} farm animals.");
+            }
+
+            try
+            {
+                int chunksX = (mapPixelW + screenW - 1) / screenW;
+                int chunksY = (mapPixelH + screenH - 1) / screenH;
+                int totalChunks = chunksX * chunksY;
+                Logger?.Debug($"Rendering in {chunksX}x{chunksY}={totalChunks} chunks, screen={screenW}x{screenH}");
+
+                // 复用单个 chunkRT 和 SpriteBatch，避免每个区块重复分配 GPU 资源
+                var chunkRT = new RenderTarget2D(gd, screenW, screenH, false,
+                    SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.DiscardContents);
+                using var copySB = new SpriteBatch(gd);
+
+                try
                 {
-                    int y = (int)clump.Tile.Y;
-                    entities.Add((y, sb => clump.draw(Game1.spriteBatch), "RC"));
-                    tfCount++;
+                    int chunkIndex = 0;
+                    for (int cy = 0; cy < chunksY; cy++)
+                    {
+                        for (int cx = 0; cx < chunksX; cx++)
+                        {
+                            chunkIndex++;
+                            int vpX = cx * screenW;
+                            int vpY = cy * screenH;
+                            int chunkW = Math.Min(screenW, mapPixelW - vpX);
+                            int chunkH = Math.Min(screenH, mapPixelH - vpY);
+
+                            Game1.viewport = new xTile.Dimensions.Rectangle(vpX, vpY, chunkW, chunkH);
+
+                            gd.SetRenderTarget(chunkRT);
+                            gd.Clear(Color.Transparent);
+
+                            try
+                            {
+                                location.draw(Game1.spriteBatch);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger?.Error($"location.draw() failed at chunk ({cx},{cy}): {ex.Message}");
+                            }
+
+                            // 将区块复制到完整 RT 的正确位置
+                            gd.SetRenderTarget(fullRT);
+                            copySB.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
+                            copySB.Draw(chunkRT, new Vector2(vpX, vpY),
+                                new Microsoft.Xna.Framework.Rectangle(0, 0, chunkW, chunkH), Color.White);
+                            copySB.End();
+                        }
+                    }
+                }
+                finally
+                {
+                    chunkRT.Dispose();
+                }
+
+                Logger?.Debug($"All {totalChunks} chunks rendered in {sw.ElapsedMilliseconds}ms.");
+            }
+            finally
+            {
+                // 恢复角色
+                foreach (var c in charBackup)
+                    location.characters.Add(c);
+                Logger?.Debug($"Restored {charBackup.Count} characters.");
+
+                // 恢复动物
+                if (animalBackup is not null && location is Farm farm2)
+                {
+                    foreach (var a in animalBackup)
+                        farm2.animals[a.myID.Value] = a;
+                    Logger?.Debug($"Restored {animalBackup.Count} farm animals.");
                 }
             }
-
-            // 4d: Objects (松露, 洒水器, 熔炉等)
-            foreach (var (tile, obj) in location.Objects.Pairs)
-            {
-                if (obj is null) continue;
-                int tileX = (int)tile.X;
-                int tileY = (int)tile.Y;
-
-                var itemData = ItemRegistry.GetDataOrErrorItem(obj.QualifiedItemId);
-                var tex = itemData.GetTexture();
-                if (tex is null || tex.IsDisposed)
-                {
-                    objCount++;
-                    continue;
-                }
-                var srcRect = itemData.GetSourceRect();
-                var drawY = tileY * 64 - Math.Max(0, srcRect.Height * 4 - 64);
-                var pos = new Vector2(tileX * 64, drawY);
-                // 使用精灵的视觉底边作为排序基准，确保高大物体（稻草人、熔炉等）
-                // 不会被下一行的作物/物体遮挡底部
-                int visualBottom = tileY + Math.Max(0, (srcRect.Height * 4 / 64) - 1);
-
-                entities.Add((visualBottom, sb => Game1.spriteBatch.Draw(tex, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f), "Obj"));
-                objCount++;
-            }
-
-            // 4e: Furniture (狗屋, 家具等)
-            foreach (var furniture in location.furniture)
-            {
-                if (furniture is null) continue;
-                int tileX = (int)furniture.TileLocation.X;
-                int tileY = (int)furniture.TileLocation.Y;
-
-                if (furniture is FishTankFurniture)
-                {
-                    entities.Add((tileY, sb => furniture.draw(Game1.spriteBatch, tileX, tileY, 1f), "Fur"));
-                    furCount++;
-                    continue;
-                }
-
-                var itemData = ItemRegistry.GetDataOrErrorItem(furniture.QualifiedItemId);
-                var tex = itemData.GetTexture();
-                if (tex is null || tex.IsDisposed)
-                {
-                    furCount++;
-                    continue;
-                }
-                var srcRectVal = furniture.sourceRect.Value;
-                var bbVal = furniture.boundingBox.Value;
-                var effects = furniture.Flipped ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-                var fpos = new Vector2(bbVal.X, bbVal.Y - (srcRectVal.Height * 4 - bbVal.Height));
-
-                entities.Add((tileY, sb => Game1.spriteBatch.Draw(tex, fpos, srcRectVal, Color.White, 0f, Vector2.Zero, 4f, effects, 0f), "Fur"));
-                furCount++;
-            }
-
-            // 4f: Buildings (农舍, 谷仓等游戏建筑)
-            foreach (var building in location.buildings)
-            {
-                // 使用建筑底部（tileY + tilesHigh）作为排序基准
-                int sortY = building.tileY.Value + building.tilesHigh.Value;
-                entities.Add((sortY, sb => building.draw(Game1.spriteBatch), "Bld"));
-                buildCount++;
-            }
-
-            // 统一 Y 排序并绘制
-            entities.Sort((a, b) => a.SortY.CompareTo(b.SortY));
-
-            Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-            foreach (var (_, draw, _) in entities)
-            {
-                draw(Game1.spriteBatch);
-            }
-            Game1.spriteBatch.End();
-
-            Logger?.Debug($"Entities drawn (Y-sorted). TF:{tfCount} Obj:{objCount} Fur:{furCount} Bld:{buildCount} Total:{entities.Count}");
-
-            // === Step 4b: 室内场景在实体之后重绘 Front 层 ===
-            // 室内墙壁的 Front 层瓦片需要覆盖在紧贴墙壁放置的家具/装饰物底部
-            // （例如太阳花装饰紧贴墙壁，底部应被墙壁遮挡）
-            if (isIndoor)
-            {
-                DrawMapLayer(displayDevice, mapSB, map, "Front");
-                Logger?.Debug("Map layer (Front) redrawn after entities (indoor wall covering).");
-            }
-
-            // === Step 5: AlwaysFront 地图图层（始终在最上层） ===
-            DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
-            Logger?.Debug("AlwaysFront layer drawn.");
         }
         finally
         {
+            sw.Stop();
             Game1.viewport = prevViewport;
             gd.SetRenderTargets(originalTargets);
         }
 
-        Logger?.Debug("MapRenderer.Render completed.");
+        Logger?.Debug($"MapRenderer.Render completed in {sw.ElapsedMilliseconds}ms total.");
         return new MapRenderResult(fullRT, mapPixelW, mapPixelH);
-    }
-
-    private static void DrawMapLayer(IDisplayDevice displayDevice, SpriteBatch spriteBatch, Map map, string layerId)
-    {
-        var layer = map.GetLayer(layerId);
-        if (layer is null) return;
-
-        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-        displayDevice.BeginScene(spriteBatch);
-        for (int tx = 0; tx < layer.LayerWidth; tx++)
-        {
-            for (int ty = 0; ty < layer.LayerHeight; ty++)
-            {
-                var tile = layer.Tiles[tx, ty];
-                if (tile is null) continue;
-                displayDevice.DrawTile(tile, new Location(tx * 64, ty * 64), 0f);
-            }
-        }
-        displayDevice.EndScene();
-        spriteBatch.End();
-    }
-
-    /// <summary>
-    /// 使用原生 SpriteBatch 绘制 Front 层（绕过 xTile display device）。
-    /// 解决室外场景中 Front 层树冠瓦片与 TerrainFeature 树木精灵之间的坐标偏移问题。
-    /// display device 在 BeginScene 时可能设置内部变换状态，导致瓦片绘制位置与
-    /// 实体精灵（直接通过 SpriteBatch 使用世界坐标绘制）不一致。
-    /// </summary>
-    private void DrawFrontLayerNative(SpriteBatch spriteBatch, Map map)
-    {
-        var layer = map.GetLayer("Front");
-        if (layer is null) return;
-
-        // 缓存 TileSheet 纹理，避免重复加载
-        var textureCache = new Dictionary<string, Texture2D?>();
-        int tilesDraw = 0;
-
-        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-        try
-        {
-            for (int tx = 0; tx < layer.LayerWidth; tx++)
-            {
-                for (int ty = 0; ty < layer.LayerHeight; ty++)
-                {
-                    var tile = layer.Tiles[tx, ty];
-                    if (tile is null) continue;
-
-                    var sheet = tile.TileSheet;
-                    if (sheet is null) continue;
-
-                    if (!textureCache.TryGetValue(sheet.ImageSource, out var texture))
-                    {
-                        try { texture = Game1.content.Load<Texture2D>(sheet.ImageSource); }
-                        catch { texture = null; }
-                        textureCache[sheet.ImageSource] = texture;
-                    }
-                    if (texture is null || texture.IsDisposed) continue;
-
-                    int sheetIndex = tile.TileIndex;
-                    int cols = sheet.SheetWidth;
-                    int srcX = (sheetIndex % cols) * 16;
-                    int srcY = (sheetIndex / cols) * 16;
-                    var srcRect = new Microsoft.Xna.Framework.Rectangle(srcX, srcY, 16, 16);
-
-                    spriteBatch.Draw(texture, new Vector2(tx * 64, ty * 64), srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f);
-                    tilesDraw++;
-                }
-            }
-        }
-        finally
-        {
-            spriteBatch.End();
-        }
-
-        Logger?.Debug($"  Front native: {tilesDraw} tiles from {textureCache.Count} sheets");
     }
 }
