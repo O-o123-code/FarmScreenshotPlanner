@@ -18,7 +18,11 @@ public class TileGridRenderer
         return _pixel;
     }
 
-    public RenderTarget2D Apply(RenderTarget2D fullRT, ModConfig config, int finalW, int finalH, int mapPixelW, int mapPixelH)
+    /// <summary>
+    /// Scales the source texture to finalW x finalH and overlays a tile grid.
+    /// Takes ownership of <paramref name="source"/> and disposes it after use.
+    /// </summary>
+    public RenderTarget2D Apply(Texture2D source, ModConfig config, int finalW, int finalH)
     {
         if (finalW < 1) finalW = 1;
         if (finalH < 1) finalH = 1;
@@ -26,22 +30,27 @@ public class TileGridRenderer
         var gd = Game1.graphics.GraphicsDevice;
         var originalTargets = gd.GetRenderTargets();
 
-        var finalRT = new RenderTarget2D(gd, finalW, finalH, false, SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
+        var finalRT = new RenderTarget2D(gd, finalW, finalH, false,
+            SurfaceFormat.Color, DepthFormat.None, 0,
+            RenderTargetUsage.PreserveContents);
         gd.SetRenderTarget(finalRT);
         gd.Clear(Color.Transparent);
 
         try
         {
+            // Draw the source texture scaled to output size
             using var sb = new SpriteBatch(gd);
-            sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone);
-            sb.Draw(fullRT, new Rectangle(0, 0, finalW, finalH), Color.White);
+            sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+                SamplerState.LinearClamp, DepthStencilState.None,
+                RasterizerState.CullNone);
+            sb.Draw(source, new Rectangle(0, 0, finalW, finalH), Color.White);
             sb.End();
 
+            // Overlay tile grid
             if (config.Grid.Enabled)
             {
-                float actualScale = (float)finalW / mapPixelW;
-                int tilePx = (int)(64 * actualScale);
-                if (tilePx < 1) tilePx = 1;
+                float actualScale = (float)finalW / source.Width;
+                int tilePx = Math.Max(1, (int)(64 * actualScale));
 
                 var pixel = GetOrCreatePixel(gd);
                 Color gridColor = ParseHexColor(config.Grid.Color, config.Grid.Opacity);
@@ -49,14 +58,10 @@ public class TileGridRenderer
                 sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
                 for (int x = 0; x < finalW; x += tilePx)
-                {
                     sb.Draw(pixel, new Rectangle(x, 0, config.Grid.Thickness, finalH), gridColor);
-                }
 
                 for (int y = 0; y < finalH; y += tilePx)
-                {
                     sb.Draw(pixel, new Rectangle(0, y, finalW, config.Grid.Thickness), gridColor);
-                }
 
                 sb.End();
             }
@@ -64,7 +69,7 @@ public class TileGridRenderer
         finally
         {
             gd.SetRenderTargets(originalTargets);
-            fullRT.Dispose();
+            source.Dispose();
         }
 
         return finalRT;
