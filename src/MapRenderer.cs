@@ -117,7 +117,8 @@ public class MapRenderer
                     continue;
                 }
                 var srcRect = itemData.GetSourceRect();
-                var pos = new Vector2(tileX * 64, tileY * 64);
+                var drawY = tileY * 64 - Math.Max(0, srcRect.Height * 4 - 64);
+                var pos = new Vector2(tileX * 64, drawY);
                 drawItems.Add((y, () => Game1.spriteBatch.Draw(tex, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f)));
 
                 if (objCount < 5)
@@ -127,7 +128,7 @@ public class MapRenderer
                 {
                     diagObj = obj;
                     diagObjX = tileX * 64;
-                    diagObjY = tileY * 64;
+                    diagObjY = drawY;
                     Logger?.Debug($"  [DBG] First object saved for diagnostic: name={obj.Name} pos=({diagObjX},{diagObjY})");
                 }
                 objCount++;
@@ -191,11 +192,14 @@ public class MapRenderer
                 manualSB.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(diagObjX - 128, diagObjY, 64, 64), Color.Yellow * 0.5f);
                 Logger?.Debug($"  [DIAG] Yellow marker at Object({diagObjX - 128},{diagObjY}) name={diagObj.Name}");
 
-                if (Game1.objectSpriteSheet is not null && !Game1.objectSpriteSheet.IsDisposed)
+                var diagItemData = ItemRegistry.GetDataOrErrorItem(diagObj.QualifiedItemId);
+                var diagTex = diagItemData.GetTexture();
+                if (diagTex is not null && !diagTex.IsDisposed)
                 {
-                    var srcRect = Game1.getSourceRectForStandardTileSheet(Game1.objectSpriteSheet, diagObj.ParentSheetIndex, 16, 16);
-                    manualSB.Draw(Game1.objectSpriteSheet, new Vector2(diagObjX, diagObjY + 96), srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f);
-                    Logger?.Debug($"  [DIAG] Direct texture draw for obj idx={diagObj.ParentSheetIndex}");
+                    var diagSrcRect = diagItemData.GetSourceRect();
+                    var diagDrawY = diagObjY - Math.Max(0, diagSrcRect.Height * 4 - 64);
+                    manualSB.Draw(diagTex, new Vector2(diagObjX, diagDrawY + 96), diagSrcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f);
+                    Logger?.Debug($"  [DIAG] Direct texture draw for obj qid={diagObj.QualifiedItemId}");
                 }
             }
 
@@ -203,6 +207,17 @@ public class MapRenderer
             {
                 manualSB.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(diagFurX - 128, diagFurY, 64, 64), Color.Red * 0.5f);
                 Logger?.Debug($"  [DIAG] Red marker at Furniture({diagFurX - 128},{diagFurY}) name={diagFur.Name}");
+
+                var diagFurData = ItemRegistry.GetDataOrErrorItem(diagFur.QualifiedItemId);
+                var diagFurTex = diagFurData.GetTexture();
+                if (diagFurTex is not null && !diagFurTex.IsDisposed)
+                {
+                    var diagFurSrc = diagFur.sourceRect.Value;
+                    var diagFurBB = diagFur.boundingBox.Value;
+                    var diagFurPos = new Vector2(diagFurBB.X, diagFurBB.Y - (diagFurSrc.Height * 4 - diagFurBB.Height));
+                    manualSB.Draw(diagFurTex, new Vector2(diagFurPos.X, diagFurPos.Y + 128), diagFurSrc, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f);
+                    Logger?.Debug($"  [DIAG] Direct texture draw for furniture qid={diagFur.QualifiedItemId}");
+                }
             }
 
             manualSB.End();
