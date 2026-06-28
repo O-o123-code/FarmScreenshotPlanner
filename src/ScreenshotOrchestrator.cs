@@ -196,6 +196,20 @@ public class ScreenshotOrchestrator
 
         finalRT.Dispose();
 
+        // Delete the game's original screenshot if configured
+        if (_mod.Config.DeleteGameOriginal)
+        {
+            try
+            {
+                File.Delete(screenshotPath);
+                _mod.LogFile.Debug($"Deleted game original: {screenshotPath}");
+            }
+            catch (Exception ex)
+            {
+                _mod.LogFile.Warn($"Failed to delete game original: {ex.Message}");
+            }
+        }
+
         _hud.Hide();
         _hud.Show(_mod.Helper.Translation.Get("hud.saved_brief"));
 

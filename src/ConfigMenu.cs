@@ -138,6 +138,16 @@ public class ConfigMenu
             : _config.SavePath;
         _api.AddParagraph(manifest, () =>
             _helper.Translation.Get("gmcm.save_path_label") + ": " + savePathDisplay);
+
+        _api.AddBoolOption(manifest,
+            () => _config.DeleteGameOriginal,
+            val => _config.DeleteGameOriginal = val,
+            () => _helper.Translation.Get("gmcm.delete_original"),
+            tooltip: () => _helper.Translation.Get("gmcm.delete_original_tooltip"));
+
+        string gameScreenshotFolder = Game1.game1.GetScreenshotFolder(false);
+        _api.AddParagraph(manifest, () =>
+            _helper.Translation.Get("gmcm.game_screenshot_path") + ": " + gameScreenshotFolder);
     }
 
     private void Reset()
@@ -147,6 +157,7 @@ public class ConfigMenu
         _config.SelectedLocation = defaults.SelectedLocation;
         _config.OutputScale = defaults.OutputScale;
         _config.SavePath = defaults.SavePath;
+        _config.DeleteGameOriginal = defaults.DeleteGameOriginal;
         _config.Grid.Enabled = defaults.Grid.Enabled;
         _config.Grid.Color = defaults.Grid.Color;
         _config.Grid.Thickness = defaults.Grid.Thickness;
