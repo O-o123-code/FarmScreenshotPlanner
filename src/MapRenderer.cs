@@ -47,10 +47,16 @@ public class MapRenderer
             DrawMapLayer(displayDevice, mapSB, map, "Buildings");
             Logger?.Debug("Map layers (Back, Buildings) drawn.");
 
-            // === Step 3: Front 地图图层（在实体之前绘制） ===
-            // Front 层包含树冠、屋檐等，需要在实体下方作为背景
-            DrawMapLayer(displayDevice, mapSB, map, "Front");
-            Logger?.Debug("Map layer (Front) drawn before entities.");
+            // === Step 3: Front 地图图层 ===
+            // 室内: Front 层包含墙壁面片，需要在实体之后用 display device 绘制以遮挡紧贴墙壁的家具底部
+            // 室外: Front 层包含树冠瓦片，使用原生 SpriteBatch 绘制（绕过 display device）
+            //        确保瓦片坐标与实体精灵坐标使用同一坐标系（世界坐标），避免树冠错位
+            bool isIndoor = !location.IsOutdoors;
+            if (!isIndoor)
+            {
+                DrawFrontLayerNative(mapSB, map);
+                Logger?.Debug("Map layer (Front) drawn via native SpriteBatch (outdoor).");
+            }
 
             // === Step 4: 手动覆盖物 — 统一 Y 排序 ===
             // 所有实体收集到一个列表，按 Y 坐标排序后统一绘制
@@ -60,8 +66,24 @@ public class MapRenderer
             int tfCount = 0, objCount = 0, furCount = 0, buildCount = 0;
 
             // 4a: Terrain Features (耕地, 树木, 作物)
+            int treeCount = 0, stumpSkipped = 0;
             foreach (var (tile, feature) in location.terrainFeatures.Pairs)
             {
+                if (feature is Tree tree)
+                {
+                    treeCount++;
+                    if (tree.stump.Value)
+                    {
+                        stumpSkipped++;
+                        continue;
+                    }
+                    // 诊断日志：记录前3棵树的详细信息
+                    if (treeCount - stumpSkipped <= 3)
+                    {
+                        Logger?.Debug($"  Tree#{treeCount - stumpSkipped}: tile=({tile.X},{tile.Y}) growth={tree.growthStage.Value} stump={tree.stump.Value}");
+                    }
+                }
+
                 int y = (int)tile.Y;
                 entities.Add((y, sb => feature.draw(Game1.spriteBatch), "TF"));
                 tfCount++;
@@ -74,6 +96,8 @@ public class MapRenderer
                 entities.Add((y, sb => feature.draw(Game1.spriteBatch), "LTF"));
                 tfCount++;
             }
+            if (treeCount > 0)
+                Logger?.Debug($"  Trees: {treeCount} total, {stumpSkipped} stumps skipped, {treeCount - stumpSkipped} drawn");
 
             // 4c: Resource Clumps (仅农场)
             if (location is Farm farm)
@@ -103,8 +127,11 @@ public class MapRenderer
                 var srcRect = itemData.GetSourceRect();
                 var drawY = tileY * 64 - Math.Max(0, srcRect.Height * 4 - 64);
                 var pos = new Vector2(tileX * 64, drawY);
+                // 使用精灵的视觉底边作为排序基准，确保高大物体（稻草人、熔炉等）
+                // 不会被下一行的作物/物体遮挡底部
+                int visualBottom = tileY + Math.Max(0, (srcRect.Height * 4 / 64) - 1);
 
-                entities.Add((tileY, sb => Game1.spriteBatch.Draw(tex, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f), "Obj"));
+                entities.Add((visualBottom, sb => Game1.spriteBatch.Draw(tex, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f), "Obj"));
                 objCount++;
             }
 
@@ -159,6 +186,15 @@ public class MapRenderer
 
             Logger?.Debug($"Entities drawn (Y-sorted). TF:{tfCount} Obj:{objCount} Fur:{furCount} Bld:{buildCount} Total:{entities.Count}");
 
+            // === Step 4b: 室内场景在实体之后重绘 Front 层 ===
+            // 室内墙壁的 Front 层瓦片需要覆盖在紧贴墙壁放置的家具/装饰物底部
+            // （例如太阳花装饰紧贴墙壁，底部应被墙壁遮挡）
+            if (isIndoor)
+            {
+                DrawMapLayer(displayDevice, mapSB, map, "Front");
+                Logger?.Debug("Map layer (Front) redrawn after entities (indoor wall covering).");
+            }
+
             // === Step 5: AlwaysFront 地图图层（始终在最上层） ===
             DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
             Logger?.Debug("AlwaysFront layer drawn.");
@@ -191,5 +227,60 @@ public class MapRenderer
         }
         displayDevice.EndScene();
         spriteBatch.End();
+    }
+
+    /// <summary>
+    /// 使用原生 SpriteBatch 绘制 Front 层（绕过 xTile display device）。
+    /// 解决室外场景中 Front 层树冠瓦片与 TerrainFeature 树木精灵之间的坐标偏移问题。
+    /// display device 在 BeginScene 时可能设置内部变换状态，导致瓦片绘制位置与
+    /// 实体精灵（直接通过 SpriteBatch 使用世界坐标绘制）不一致。
+    /// </summary>
+    private void DrawFrontLayerNative(SpriteBatch spriteBatch, Map map)
+    {
+        var layer = map.GetLayer("Front");
+        if (layer is null) return;
+
+        // 缓存 TileSheet 纹理，避免重复加载
+        var textureCache = new Dictionary<string, Texture2D?>();
+        int tilesDraw = 0;
+
+        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        try
+        {
+            for (int tx = 0; tx < layer.LayerWidth; tx++)
+            {
+                for (int ty = 0; ty < layer.LayerHeight; ty++)
+                {
+                    var tile = layer.Tiles[tx, ty];
+                    if (tile is null) continue;
+
+                    var sheet = tile.TileSheet;
+                    if (sheet is null) continue;
+
+                    if (!textureCache.TryGetValue(sheet.ImageSource, out var texture))
+                    {
+                        try { texture = Game1.content.Load<Texture2D>(sheet.ImageSource); }
+                        catch { texture = null; }
+                        textureCache[sheet.ImageSource] = texture;
+                    }
+                    if (texture is null || texture.IsDisposed) continue;
+
+                    int sheetIndex = tile.TileIndex;
+                    int cols = sheet.SheetWidth;
+                    int srcX = (sheetIndex % cols) * 16;
+                    int srcY = (sheetIndex / cols) * 16;
+                    var srcRect = new Microsoft.Xna.Framework.Rectangle(srcX, srcY, 16, 16);
+
+                    spriteBatch.Draw(texture, new Vector2(tx * 64, ty * 64), srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f);
+                    tilesDraw++;
+                }
+            }
+        }
+        finally
+        {
+            spriteBatch.End();
+        }
+
+        Logger?.Debug($"  Front native: {tilesDraw} tiles from {textureCache.Count} sheets");
     }
 }

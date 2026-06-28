@@ -17,7 +17,10 @@ public class RollingFileLogger : IDisposable
         _logDir = Path.Combine(modDirectory, "logs");
         _logPath = Path.Combine(_logDir, "FarmScreenshotPlanner.log");
         Directory.CreateDirectory(_logDir);
-        _writer = new StreamWriter(_logPath, append: true) { AutoFlush = true };
+        // 使用 FileShare.ReadWrite 允许其他进程（如 SMAPI、日志查看器）同时读取日志文件
+        // 避免 "The process cannot access the file because it is being used by another process" 崩溃
+        var fs = new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        _writer = new StreamWriter(fs) { AutoFlush = true };
     }
 
     public void Debug(string message) => Write("DEBUG", message);
@@ -60,7 +63,8 @@ public class RollingFileLogger : IDisposable
             File.Move(_logPath, first);
         }
 
-        _writer = new StreamWriter(_logPath, append: false) { AutoFlush = true };
+        var fs = new FileStream(_logPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        _writer = new StreamWriter(fs) { AutoFlush = true };
     }
 
     public void Dispose()
