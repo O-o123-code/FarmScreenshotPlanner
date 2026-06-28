@@ -108,12 +108,20 @@ public class MapRenderer
                 int y = (int)tile.Y;
                 int tileX = (int)tile.X;
                 int tileY = (int)tile.Y;
-                var srcRect = Game1.getSourceRectForStandardTileSheet(Game1.objectSpriteSheet, obj.ParentSheetIndex, 16, 16);
+                var itemData = ItemRegistry.GetDataOrErrorItem(obj.QualifiedItemId);
+                var tex = itemData.GetTexture();
+                if (tex is null || tex.IsDisposed)
+                {
+                    Logger?.Debug($"  Object[{objCount + 1}]: tile({tileX},{tileY}) name={obj.Name} SKIP - texture null/disposed");
+                    objCount++;
+                    continue;
+                }
+                var srcRect = itemData.GetSourceRect();
                 var pos = new Vector2(tileX * 64, tileY * 64);
-                drawItems.Add((y, () => Game1.spriteBatch.Draw(Game1.objectSpriteSheet, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f)));
+                drawItems.Add((y, () => Game1.spriteBatch.Draw(tex, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f)));
 
                 if (objCount < 5)
-                    Logger?.Debug($"  Object[{objCount + 1}]: tile({tileX},{tileY}) type={obj.GetType().Name} name={obj.Name} parentSheetIndex={obj.ParentSheetIndex} category={obj.Category} directDraw");
+                    Logger?.Debug($"  Object[{objCount + 1}]: tile({tileX},{tileY}) type={obj.GetType().Name} name={obj.Name} qid={obj.QualifiedItemId} srcRect=({srcRect.X},{srcRect.Y},{srcRect.Width},{srcRect.Height}) directDraw");
 
                 if (objCount == 0)
                 {
