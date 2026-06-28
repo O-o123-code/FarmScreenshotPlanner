@@ -89,10 +89,15 @@ public class MapRenderer
 
                             try
                             {
+                                Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+                                    SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                                 location.draw(Game1.spriteBatch);
+                                Game1.spriteBatch.End();
                             }
                             catch (Exception ex)
                             {
+                                // 确保 spriteBatch 不会卡在 Begin 状态
+                                try { Game1.spriteBatch.End(); } catch { }
                                 Logger?.Error($"location.draw() failed at chunk ({cx},{cy}): {ex.Message}");
                             }
 
