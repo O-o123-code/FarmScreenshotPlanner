@@ -1,6 +1,10 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
+using xTile;
+using xTile.Dimensions;
+using xTile.Display;
+using xTile.Layers;
 
 namespace FarmScreenshotPlanner;
 
@@ -11,10 +15,10 @@ public class MapRenderer
     public RollingFileLogger? Logger { get; set; }
 
     /// <summary>
-    /// 使用分块视口 + GameLocation.draw() 渲染完整地图。
-    /// 利用游戏自身的渲染管线处理所有图层（Back/Buildings/Front/实体/AlwaysFront），
-    /// 确保树木、建筑等复杂精灵的渲染与游戏画面完全一致，
-    /// 彻底消除手动图层渲染中 display device 与实体精灵的坐标系偏移问题。
+    /// 单次全视口渲染：
+    /// - 地图瓦片层 (Back/Buildings/Front/AlwaysFront) 通过 display device 绘制
+    /// - 实体层通过 GameLocation.draw() 由游戏自身管线绘制
+    /// 两者共享同一全图视口，坐标系一致。
     /// </summary>
     public MapRenderResult Render(GameLocation location)
     {
@@ -33,114 +37,91 @@ public class MapRenderer
         Logger?.Debug($"fullRT created: {mapPixelW}x{mapPixelH}");
 
         var prevViewport = Game1.viewport;
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Game1.viewport = new xTile.Dimensions.Rectangle(0, 0, mapPixelW, mapPixelH);
 
         try
         {
-            int screenW = Game1.graphics.PreferredBackBufferWidth;
-            int screenH = Game1.graphics.PreferredBackBufferHeight;
+            var displayDevice = Game1.mapDisplayDevice;
 
             gd.SetRenderTarget(fullRT);
             gd.Clear(Color.White);
 
-            // 暂时隐藏角色/NPC/动物，避免它们出现在截图中
+            // 暂时隐藏角色/NPC/动物
             var charBackup = new List<NPC>(location.characters);
             location.characters.Clear();
-            Logger?.Debug($"Hidden {charBackup.Count} characters for screenshot.");
 
-            // 如果是农场，隐藏动物
             List<FarmAnimal>? animalBackup = null;
             if (location is Farm farm)
             {
                 animalBackup = new List<FarmAnimal>(farm.animals.Values);
                 farm.animals.Clear();
-                Logger?.Debug($"Hidden {animalBackup.Count} farm animals.");
             }
+            Logger?.Debug($"Hidden {charBackup.Count} chars, {animalBackup?.Count ?? 0} animals.");
 
             try
             {
-                int chunksX = (mapPixelW + screenW - 1) / screenW;
-                int chunksY = (mapPixelH + screenH - 1) / screenH;
-                int totalChunks = chunksX * chunksY;
-                Logger?.Debug($"Rendering in {chunksX}x{chunksY}={totalChunks} chunks, screen={screenW}x{screenH}");
+                // 1) Back + Buildings 瓦片层
+                DrawMapLayer(displayDevice, Game1.spriteBatch, map, "Back");
+                DrawMapLayer(displayDevice, Game1.spriteBatch, map, "Buildings");
+                Logger?.Debug("Back + Buildings drawn.");
 
-                // 复用单个 chunkRT 和 SpriteBatch，避免每个区块重复分配 GPU 资源
-                var chunkRT = new RenderTarget2D(gd, screenW, screenH, false,
-                    SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.DiscardContents);
-                using var copySB = new SpriteBatch(gd);
-
+                // 2) 实体层 (TerrainFeature / Object / Character / Building)
                 try
                 {
-                    int chunkIndex = 0;
-                    for (int cy = 0; cy < chunksY; cy++)
-                    {
-                        for (int cx = 0; cx < chunksX; cx++)
-                        {
-                            chunkIndex++;
-                            int vpX = cx * screenW;
-                            int vpY = cy * screenH;
-                            int chunkW = Math.Min(screenW, mapPixelW - vpX);
-                            int chunkH = Math.Min(screenH, mapPixelH - vpY);
-
-                            Game1.viewport = new xTile.Dimensions.Rectangle(vpX, vpY, chunkW, chunkH);
-
-                            gd.SetRenderTarget(chunkRT);
-                            gd.Clear(Color.Transparent);
-
-                            try
-                            {
-                                Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
-                                    SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-                                location.draw(Game1.spriteBatch);
-                                Game1.spriteBatch.End();
-                            }
-                            catch (Exception ex)
-                            {
-                                // 确保 spriteBatch 不会卡在 Begin 状态
-                                try { Game1.spriteBatch.End(); } catch { }
-                                Logger?.Error($"location.draw() failed at chunk ({cx},{cy}): {ex.Message}");
-                            }
-
-                            // 将区块复制到完整 RT 的正确位置
-                            gd.SetRenderTarget(fullRT);
-                            copySB.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
-                            copySB.Draw(chunkRT, new Vector2(vpX, vpY),
-                                new Microsoft.Xna.Framework.Rectangle(0, 0, chunkW, chunkH), Color.White);
-                            copySB.End();
-                        }
-                    }
+                    Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+                        SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                    location.draw(Game1.spriteBatch);
+                    Game1.spriteBatch.End();
+                    Logger?.Debug("Entities drawn via location.draw().");
                 }
-                finally
+                catch (Exception ex)
                 {
-                    chunkRT.Dispose();
+                    try { Game1.spriteBatch.End(); } catch { }
+                    Logger?.Error($"location.draw() failed: {ex.Message}");
                 }
 
-                Logger?.Debug($"All {totalChunks} chunks rendered in {sw.ElapsedMilliseconds}ms.");
+                // 3) Front + AlwaysFront 瓦片层
+                DrawMapLayer(displayDevice, Game1.spriteBatch, map, "Front");
+                DrawMapLayer(displayDevice, Game1.spriteBatch, map, "AlwaysFront");
+                Logger?.Debug("Front + AlwaysFront drawn.");
             }
             finally
             {
-                // 恢复角色
                 foreach (var c in charBackup)
                     location.characters.Add(c);
-                Logger?.Debug($"Restored {charBackup.Count} characters.");
-
-                // 恢复动物
                 if (animalBackup is not null && location is Farm farm2)
-                {
                     foreach (var a in animalBackup)
                         farm2.animals[a.myID.Value] = a;
-                    Logger?.Debug($"Restored {animalBackup.Count} farm animals.");
-                }
             }
         }
         finally
         {
-            sw.Stop();
             Game1.viewport = prevViewport;
             gd.SetRenderTargets(originalTargets);
         }
 
-        Logger?.Debug($"MapRenderer.Render completed in {sw.ElapsedMilliseconds}ms total.");
+        Logger?.Debug("MapRenderer.Render completed.");
         return new MapRenderResult(fullRT, mapPixelW, mapPixelH);
+    }
+
+    private static void DrawMapLayer(IDisplayDevice displayDevice, SpriteBatch spriteBatch, Map map, string layerId)
+    {
+        var layer = map.GetLayer(layerId);
+        if (layer is null) return;
+
+        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+            SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        displayDevice.BeginScene(spriteBatch);
+        for (int tx = 0; tx < layer.LayerWidth; tx++)
+        {
+            for (int ty = 0; ty < layer.LayerHeight; ty++)
+            {
+                var tile = layer.Tiles[tx, ty];
+                if (tile is null) continue;
+                displayDevice.DrawTile(tile, new Location(tx * 64, ty * 64), 0f);
+            }
+        }
+        displayDevice.EndScene();
+        spriteBatch.End();
     }
 }
