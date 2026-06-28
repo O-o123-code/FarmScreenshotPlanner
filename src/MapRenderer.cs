@@ -47,6 +47,26 @@ public class MapRenderer
 
             Logger?.Debug("Map layers (Back, Buildings) drawn.");
 
+            // 诊断：记录各图层的 TileIndex 采样，用于排查 AlwaysFront 重复问题
+            var diagLayers = new[] { "Back", "Buildings", "Front", "AlwaysFront" };
+            foreach (var layerId in diagLayers)
+            {
+                var layer = map.GetLayer(layerId);
+                if (layer is null) continue;
+                // 采样 Bear Statue 位置 (28,19) 附近的 tile
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int sx = 28 + dx, sy = 19 + dy;
+                        if (sx < 0 || sx >= layer.LayerWidth || sy < 0 || sy >= layer.LayerHeight) continue;
+                        var tile = layer.Tiles[sx, sy];
+                        if (tile is not null)
+                            Logger?.Debug($"  Layer[{layerId}] tile({sx},{sy}): TileIndex={tile.TileIndex} TileSheetId={tile.TileSheet.Id}");
+                    }
+                }
+            }
+
             Logger?.Debug($"Viewport before entity drawing: ({Game1.viewport.X},{Game1.viewport.Y},{Game1.viewport.Width},{Game1.viewport.Height})");
             Logger?.Debug($"RT check before entity drawing: Set={gd.GetRenderTargets().Length > 0}");
 
@@ -55,15 +75,9 @@ public class MapRenderer
             Furniture? diagFur = null;
             int diagFurX = 0, diagFurY = 0;
 
-            // ====== 阶段 A: Buildings + Terrain Features ======
+            // ====== 阶段 A: Terrain Features (不含 Buildings) ======
             var tfList = new List<(int Y, Action Draw)>();
             int tfCount = 0;
-
-            foreach (var building in location.buildings)
-            {
-                int y = building.tileY.Value;
-                tfList.Add((y, () => building.draw(Game1.spriteBatch)));
-            }
 
             foreach (var (tile, feature) in location.terrainFeatures.Pairs)
             {
@@ -72,7 +86,7 @@ public class MapRenderer
 
                 if (feature is Tree tree)
                 {
-                    Logger?.Debug($"Tree: tile({tile.X},{tile.Y}) growthStage={tree.growthStage.Value} stump={tree.stump.Value}");
+                    Logger?.Debug($"Tree: tile({tile.X},{tile.Y}) growthStage={tree.growthStage.Value} stump={tree.stump.Value} treePos=({tile.X * 64},{tile.Y * 64}) bb=({tree.getBoundingBox().X},{tree.getBoundingBox().Y},{tree.getBoundingBox().Width},{tree.getBoundingBox().Height})");
                     if (tree.growthStage.Value >= 5 && !tree.stump.Value)
                         tfList.Add((y + 1, () => feature.draw(Game1.spriteBatch)));
                 }
@@ -208,10 +222,54 @@ public class MapRenderer
 
             Logger?.Debug($"Furniture drawn. Count: {furCount}");
 
-            // ====== 阶段 D: Front + AlwaysFront 图层（在实体之上） ======
+            // ====== 阶段 D: Buildings（游戏中原生位于 Object / Furniture 之上） ======
+            int buildCount = 0;
+            var buildList = new List<(int Y, Action Draw)>();
+
+            foreach (var building in location.buildings)
+            {
+                int y = building.tileY.Value;
+                buildList.Add((y, () => building.draw(Game1.spriteBatch)));
+                buildCount++;
+            }
+
+            buildList.Sort((a, b) => a.Y.CompareTo(b.Y));
+            foreach (var (_, draw) in buildList)
+            {
+                Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                draw();
+                Game1.spriteBatch.End();
+            }
+
+            Logger?.Debug($"Buildings drawn. Count: {buildCount}");
+
+            // ====== 阶段 E: Front + AlwaysFront 图层（在实体之上） ======
             DrawMapLayer(displayDevice, mapSB, map, "Front");
             DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
             Logger?.Debug("Front + AlwaysFront layers drawn after entities.");
+
+            // 诊断：检查 AlwaysFront 层是否有与家具/Object 位置重叠的 tiles（排查重复问题）
+            var alwaysFrontLayer = map.GetLayer("AlwaysFront");
+            if (alwaysFrontLayer is not null)
+            {
+                foreach (var furniture in location.furniture)
+                {
+                    if (furniture is null) continue;
+                    int ftx = (int)furniture.TileLocation.X;
+                    int fty = (int)furniture.TileLocation.Y;
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int sx = ftx + dx, sy = fty + dy;
+                            if (sx < 0 || sx >= alwaysFrontLayer.LayerWidth || sy < 0 || sy >= alwaysFrontLayer.LayerHeight) continue;
+                            var tile = alwaysFrontLayer.Tiles[sx, sy];
+                            if (tile is not null)
+                                Logger?.Debug($"  [DIAG] Furniture({ftx},{fty}) name={furniture.Name} overlaps AlwaysFront tile({sx},{sy}) TileIndex={tile.TileIndex} TileSheet={tile.TileSheet.Id}");
+                        }
+                    }
+                }
+            }
 
             // ====== 诊断标记（使用 manualSB，不由 Game1.spriteBatch 管理） ======
             using var manualSB = new SpriteBatch(gd);
