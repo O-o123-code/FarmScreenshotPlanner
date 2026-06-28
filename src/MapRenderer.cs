@@ -44,42 +44,37 @@ public class MapRenderer
 
             DrawMapLayer(displayDevice, mapSB, map, "Back");
             DrawMapLayer(displayDevice, mapSB, map, "Buildings");
-            DrawMapLayer(displayDevice, mapSB, map, "Front");
-            DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
 
-            Logger?.Debug("Map layers (Back, Buildings, Front, AlwaysFront) drawn.");
+            Logger?.Debug("Map layers (Back, Buildings) drawn.");
 
-            Logger?.Debug($"Viewport before manual batch: ({Game1.viewport.X},{Game1.viewport.Y},{Game1.viewport.Width},{Game1.viewport.Height})");
-            Logger?.Debug($"RT check before manual batch: Set={gd.GetRenderTargets().Length > 0}");
-
-            // 使用本地 SpriteBatch（离屏渲染标准实践）
-            using var manualSB = new SpriteBatch(gd);
-
-            // ====== 收集阶段：收集所有需要绘制的实体，同时保存首个实体用于诊断 ======
-            var drawItems = new List<(int Y, Action Draw)>();
-            int tfCount = 0;
+            Logger?.Debug($"Viewport before entity drawing: ({Game1.viewport.X},{Game1.viewport.Y},{Game1.viewport.Width},{Game1.viewport.Height})");
+            Logger?.Debug($"RT check before entity drawing: Set={gd.GetRenderTargets().Length > 0}");
 
             StardewValley.Object? diagObj = null;
             int diagObjX = 0, diagObjY = 0;
             Furniture? diagFur = null;
             int diagFurX = 0, diagFurY = 0;
 
+            // ====== 阶段 A: Buildings + Terrain Features ======
+            var tfList = new List<(int Y, Action Draw)>();
+            int tfCount = 0;
+
             foreach (var building in location.buildings)
             {
                 int y = building.tileY.Value;
-                drawItems.Add((y, () => building.draw(Game1.spriteBatch)));
+                tfList.Add((y, () => building.draw(Game1.spriteBatch)));
             }
 
             foreach (var (tile, feature) in location.terrainFeatures.Pairs)
             {
                 int y = (int)tile.Y;
-                drawItems.Add((y, () => feature.draw(Game1.spriteBatch)));
+                tfList.Add((y, () => feature.draw(Game1.spriteBatch)));
 
                 if (feature is Tree tree)
                 {
                     Logger?.Debug($"Tree: tile({tile.X},{tile.Y}) growthStage={tree.growthStage.Value} stump={tree.stump.Value}");
                     if (tree.growthStage.Value >= 5 && !tree.stump.Value)
-                        drawItems.Add((y + 1, () => feature.draw(Game1.spriteBatch)));
+                        tfList.Add((y + 1, () => feature.draw(Game1.spriteBatch)));
                 }
 
                 if (tfCount++ < 3)
@@ -89,7 +84,7 @@ public class MapRenderer
             foreach (var feature in location.largeTerrainFeatures)
             {
                 int y = (int)feature.Tile.Y;
-                drawItems.Add((y, () => feature.draw(Game1.spriteBatch)));
+                tfList.Add((y, () => feature.draw(Game1.spriteBatch)));
             }
 
             if (location is Farm farm)
@@ -97,11 +92,24 @@ public class MapRenderer
                 foreach (var clump in farm.resourceClumps)
                 {
                     int y = (int)clump.Tile.Y;
-                    drawItems.Add((y, () => clump.draw(Game1.spriteBatch)));
+                    tfList.Add((y, () => clump.draw(Game1.spriteBatch)));
                 }
             }
 
+            tfList.Sort((a, b) => a.Y.CompareTo(b.Y));
+            foreach (var (_, draw) in tfList)
+            {
+                Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                draw();
+                Game1.spriteBatch.End();
+            }
+
+            Logger?.Debug($"Terrain features drawn. Count: {tfList.Count}");
+
+            // ====== 阶段 B: Objects ======
             int objCount = 0;
+            var objList = new List<(int Y, Action Draw)>();
+
             foreach (var (tile, obj) in location.Objects.Pairs)
             {
                 if (obj is null) continue;
@@ -119,7 +127,7 @@ public class MapRenderer
                 var srcRect = itemData.GetSourceRect();
                 var drawY = tileY * 64 - Math.Max(0, srcRect.Height * 4 - 64);
                 var pos = new Vector2(tileX * 64, drawY);
-                drawItems.Add((y, () => Game1.spriteBatch.Draw(tex, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f)));
+                objList.Add((y, () => Game1.spriteBatch.Draw(tex, pos, srcRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f)));
 
                 if (objCount < 5)
                     Logger?.Debug($"  Object[{objCount + 1}]: tile({tileX},{tileY}) type={obj.GetType().Name} name={obj.Name} qid={obj.QualifiedItemId} srcRect=({srcRect.X},{srcRect.Y},{srcRect.Width},{srcRect.Height}) directDraw");
@@ -134,13 +142,35 @@ public class MapRenderer
                 objCount++;
             }
 
+            objList.Sort((a, b) => a.Y.CompareTo(b.Y));
+            foreach (var (_, draw) in objList)
+            {
+                Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                draw();
+                Game1.spriteBatch.End();
+            }
+
+            Logger?.Debug($"Objects drawn. Count: {objCount}");
+
+            // ====== 阶段 C: Furniture ======
             int furCount = 0;
+            var furList = new List<(int Y, Action Draw)>();
+
             foreach (var furniture in location.furniture)
             {
                 if (furniture is null) continue;
                 int y = (int)furniture.TileLocation.Y;
                 int tileX = (int)furniture.TileLocation.X;
                 int tileY = (int)furniture.TileLocation.Y;
+
+                // FishTankFurniture: 回退到原 draw()，让其内部绘制鱼
+                if (furniture is FishTankFurniture)
+                {
+                    furList.Add((y, () => furniture.draw(Game1.spriteBatch, tileX, tileY, 1f)));
+                    furCount++;
+                    continue;
+                }
+
                 var itemData = ItemRegistry.GetDataOrErrorItem(furniture.QualifiedItemId);
                 var tex = itemData.GetTexture();
                 if (tex is null || tex.IsDisposed)
@@ -151,8 +181,9 @@ public class MapRenderer
                 }
                 var srcRectVal = furniture.sourceRect.Value;
                 var bbVal = furniture.boundingBox.Value;
+                var effects = furniture.Flipped ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
                 var pos = new Vector2(bbVal.X, bbVal.Y - (srcRectVal.Height * 4 - bbVal.Height));
-                drawItems.Add((y, () => Game1.spriteBatch.Draw(tex, pos, srcRectVal, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0f)));
+                furList.Add((y, () => Game1.spriteBatch.Draw(tex, pos, srcRectVal, Color.White, 0f, Vector2.Zero, 4f, effects, 0f)));
 
                 if (furCount < 5)
                     Logger?.Debug($"  Furniture[{furCount + 1}]: tile({tileX},{tileY}) type={furniture.GetType().Name} name={furniture.Name} srcRect=({srcRectVal.X},{srcRectVal.Y},{srcRectVal.Width},{srcRectVal.Height}) bb=({bbVal.X},{bbVal.Y},{bbVal.Width},{bbVal.Height}) directDraw");
@@ -167,21 +198,23 @@ public class MapRenderer
                 furCount++;
             }
 
-            Logger?.Debug($"Manual overrides collected: B:{location.buildings.Count} TF:{tfCount} LTF:{location.largeTerrainFeatures.Count} O:{objCount} F:{furCount}");
-
-            // ====== 分阶段绘制 ======
-            // 阶段 1: 每个实体独立 Begin/End（防止实体内部 End/Begin 干扰外部批次状态）
-            drawItems.Sort((a, b) => a.Y.CompareTo(b.Y));
-            int execIndex = 0;
-            foreach (var (_, draw) in drawItems)
+            furList.Sort((a, b) => a.Y.CompareTo(b.Y));
+            foreach (var (_, draw) in furList)
             {
                 Game1.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 draw();
                 Game1.spriteBatch.End();
-                execIndex++;
             }
 
-            // 阶段 2: 使用 manualSB 绘制诊断标记（始终可靠）
+            Logger?.Debug($"Furniture drawn. Count: {furCount}");
+
+            // ====== 阶段 D: Front + AlwaysFront 图层（在实体之上） ======
+            DrawMapLayer(displayDevice, mapSB, map, "Front");
+            DrawMapLayer(displayDevice, mapSB, map, "AlwaysFront");
+            Logger?.Debug("Front + AlwaysFront layers drawn after entities.");
+
+            // ====== 诊断标记（使用 manualSB，不由 Game1.spriteBatch 管理） ======
+            using var manualSB = new SpriteBatch(gd);
             manualSB.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
 
             manualSB.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(0, 0, 128, 128), Color.Magenta);
@@ -222,8 +255,8 @@ public class MapRenderer
 
             manualSB.End();
 
-            Logger?.Debug($"Manual overrides drawn. Total drawItems executed: {execIndex}");
-            Logger?.Debug($"RT check after manual batch: Set={gd.GetRenderTargets().Length > 0}");
+            Logger?.Debug($"Entity drawing completed. TF:{tfList.Count} O:{objCount} F:{furCount}");
+            Logger?.Debug($"RT check after entity drawing: Set={gd.GetRenderTargets().Length > 0}");
 
             // ====== 诊断 6: 像素质检测（采样图块中心，避免透明边角）=====
             gd.SetRenderTargets(originalTargets);
