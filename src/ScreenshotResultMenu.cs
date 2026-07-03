@@ -13,6 +13,14 @@ public class ScreenshotResultMenu : IClickableMenu
     private const int ThumbMaxW = 400;
     private const int ThumbMaxH = 240;
 
+    // 使用最近邻采样避免像素画缩放时网格线粗细不均
+    private static readonly SamplerState PointSampler = new()
+    {
+        Filter = TextureFilter.Point,
+        AddressU = TextureAddressMode.Clamp,
+        AddressV = TextureAddressMode.Clamp,
+    };
+
     private readonly string _filePath;
     private readonly string _title;
     private readonly ModEntry _mod;
@@ -105,8 +113,7 @@ public class ScreenshotResultMenu : IClickableMenu
                 _isZoomed = false;
                 return;
             }
-            DisposeThumbnail();
-            Game1.activeClickableMenu = null;
+            CloseMenu();
             return;
         }
         base.receiveKeyPress(key);
@@ -141,8 +148,7 @@ public class ScreenshotResultMenu : IClickableMenu
             }
             else if (btn.name == "close")
             {
-                DisposeThumbnail();
-                Game1.activeClickableMenu = null;
+                CloseMenu();
             }
 
             return;
@@ -168,6 +174,7 @@ public class ScreenshotResultMenu : IClickableMenu
             int drawX = (Game1.uiViewport.Width - drawW) / 2;
             int drawY = (Game1.uiViewport.Height - drawH) / 2;
 
+            Game1.graphics.GraphicsDevice.SamplerStates[0] = PointSampler;
             b.Draw(_thumbnail, new Rectangle(drawX, drawY, drawW, drawH), Color.White);
 
             string hint = _mod.Helper.Translation.Get("ui.zoom_hint");
@@ -200,6 +207,7 @@ public class ScreenshotResultMenu : IClickableMenu
         // 绘制缩略图
         if (_thumbnail is not null && _thumbRect != Rectangle.Empty)
         {
+            Game1.graphics.GraphicsDevice.SamplerStates[0] = PointSampler;
             b.Draw(_thumbnail, _thumbRect, Color.White);
 
             // 缩略图下方显示"点击预览"提示
@@ -236,5 +244,11 @@ public class ScreenshotResultMenu : IClickableMenu
     {
         _thumbnail?.Dispose();
         _thumbnail = null;
+    }
+
+    private void CloseMenu()
+    {
+        DisposeThumbnail();
+        Game1.activeClickableMenu = null;
     }
 }

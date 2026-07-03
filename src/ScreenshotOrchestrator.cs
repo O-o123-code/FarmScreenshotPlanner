@@ -67,8 +67,17 @@ public class ScreenshotOrchestrator
 
             _mod.Monitor.Debug($"Resolved location: {location.Name ?? "null"}");
 
+            // 安全检查：拒绝在危险区域截图（矿井、地下城等）
+            if (LocationService.IsDangerousLocation(location))
+            {
+                _mod.Monitor.Info($"Screenshot blocked: dangerous location ({location.Name}).");
+                _hud.Show(_mod.Helper.Translation.Get("error.dangerous_location"));
+                _isRendering = false;
+                return;
+            }
+
             _freezer.Freeze();
-            _hud.Show(string.Format(_mod.Helper.Translation.Get("hud.rendering"), _mod.Config.CancelHotkey));
+            _hud.Show(_mod.Helper.Translation.Get("hud.rendering"));
 
             _screenshotFolder = Game1.game1.GetScreenshotFolder(true);
             _pendingLocation = location;
@@ -94,16 +103,6 @@ public class ScreenshotOrchestrator
         }
     }
 
-    public void CancelCapture()
-    {
-        if (!_isRendering) return;
-        
-        _mod.Monitor.Info($"Screenshot cancelled by player (CancelHotkey: {_mod.Config.CancelHotkey}).");
-        _hud.Hide();
-        _hud.Show(_mod.Helper.Translation.Get("hud.cancelled"));
-        Cleanup(false);
-    }
-
     private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
     {
         // Safety: abort if a menu was opened during the async wait
@@ -120,7 +119,7 @@ public class ScreenshotOrchestrator
         if (_waitTicks % 60 == 0)
         {
             float seconds = _waitTicks / 60f;
-            string baseMsg = string.Format(_mod.Helper.Translation.Get("hud.rendering"), _mod.Config.CancelHotkey);
+            string baseMsg = _mod.Helper.Translation.Get("hud.rendering");
             _hud.Hide();
             _hud.Show($"{baseMsg} ({seconds:F0}s)");
         }
@@ -134,7 +133,8 @@ public class ScreenshotOrchestrator
         
         if (latestFile is null)
         {
-            _mod.Monitor.Debug($"Poll #{_waitTicks}: waiting for game screenshot file with prefix: {_pendingPrefix}");
+            if (_waitTicks % 60 == 0)
+                _mod.Monitor.Debug($"Poll #{_waitTicks}: waiting for game screenshot file with prefix: {_pendingPrefix}");
             if (_waitTicks >= TimeoutTicks)
             {
                 _mod.Monitor.Warn("Screenshot timed out waiting for game screenshot file.");
@@ -148,7 +148,8 @@ public class ScreenshotOrchestrator
         // File exists but may still be written by the game — wait until it's unlocked
         if (!FileIsReady(latestFile))
         {
-            _mod.Monitor.Debug($"File still locked, retrying: {latestFile}");
+            if (_waitTicks % 60 == 0)
+                _mod.Monitor.Debug($"File still locked, retrying: {latestFile}");
             if (_waitTicks >= TimeoutTicks)
             {
                 _mod.Monitor.Warn("Screenshot timed out waiting for file to be unlocked.");
@@ -188,25 +189,24 @@ public class ScreenshotOrchestrator
         if (_screenshotFolder is null || !Directory.Exists(_screenshotFolder))
             return null;
 
-        // 游戏保存的文件名格式是 {prefix}.png
         var expectedFile = Path.Combine(_screenshotFolder, $"{prefix}.png");
-        
+
         if (!File.Exists(expectedFile))
         {
-            _mod.Monitor.Debug($"Expected file not found: {expectedFile}");
+            if (_waitTicks % 60 == 0)
+                _mod.Monitor.Debug($"Expected file not found: {expectedFile}");
             return null;
         }
 
         var fileInfo = new FileInfo(expectedFile);
-        
-        // 只接受截图开始后创建/修改的文件，避免匹配到旧截图
+
         if (fileInfo.LastWriteTime < _captureStartTime)
         {
-            _mod.Monitor.Debug($"File {fileInfo.Name} was created before capture started ({fileInfo.LastWriteTime:HH:mm:ss} < {_captureStartTime:HH:mm:ss})");
+            if (_waitTicks % 60 == 0)
+                _mod.Monitor.Debug($"File {fileInfo.Name} predates capture ({fileInfo.LastWriteTime:HH:mm:ss} < {_captureStartTime:HH:mm:ss})");
             return null;
         }
 
-        _mod.Monitor.Debug($"Found screenshot file: {fileInfo.Name}");
         return fileInfo.FullName;
     }
 
@@ -248,21 +248,8 @@ public class ScreenshotOrchestrator
 
             if (_mod.Config.DeleteGameOriginal)
             {
-                try
-                {
-                    // 等待游戏释放文件句柄
-                    for (int retry = 0; retry < 10 && !FileIsReady(screenshotPath); retry++)
-                        Thread.Sleep(50);
-
-                    File.Delete(screenshotPath);
-                    _mod.Monitor.Debug($"Deleted game original: {screenshotPath}");
-                }
-                catch (Exception ex)
-                {
-                    _mod.Monitor.Warn($"Failed to delete game original: {ex.Message}");
-                    _hud.Hide();
-                    _hud.Show(_mod.Helper.Translation.Get("error.delete_failed"));
-                }
+                // 后台异步删除，不阻塞游戏主线程
+                _ = DeleteGameOriginalAsync(screenshotPath);
             }
 
             _hud.Hide();
@@ -299,7 +286,37 @@ public class ScreenshotOrchestrator
         }
     }
 
-
+    /// <summary>
+    /// Asynchronously retries deletion of the game's original screenshot file.
+    /// The game may hold the file handle for several seconds after writing.
+    /// </summary>
+    private async Task DeleteGameOriginalAsync(string path)
+    {
+        int[] delays = { 1000, 2000, 3000, 5000 };
+        foreach (int delay in delays)
+        {
+            try
+            {
+                await Task.Delay(delay);
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    _mod.Monitor.Debug($"Deleted game original (after {delay}ms): {path}");
+                    return;
+                }
+            }
+            catch (IOException)
+            {
+                _mod.Monitor.Debug($"File still locked, will retry after {delay}ms: {path}");
+            }
+            catch (Exception ex)
+            {
+                _mod.Monitor.Warn($"Unexpected error deleting game original: {ex.Message}");
+                return;
+            }
+        }
+        _mod.Monitor.Warn($"Failed to delete game original after all retries: {path}");
+    }
 
     /// <summary>
     /// Returns true if the file exists and no other process holds a lock on it.

@@ -91,12 +91,6 @@ public class ConfigMenu
             () => _helper.Translation.Get("gmcm.hotkey"),
             tooltip: () => _helper.Translation.Get("gmcm.hotkey_tooltip"));
 
-        _api.AddKeybindList(manifest,
-            () => _config.CancelHotkey,
-            val => _config.CancelHotkey = val,
-            () => _helper.Translation.Get("gmcm.cancel_hotkey"),
-            tooltip: () => _helper.Translation.Get("gmcm.cancel_hotkey_tooltip"));
-
         var locations = GetCachedLocationOptions();
 
         _api.AddTextOption(manifest,
@@ -197,7 +191,6 @@ public class ConfigMenu
     {
         var defaults = new ModConfig();
         _config.Hotkey = defaults.Hotkey;
-        _config.CancelHotkey = defaults.CancelHotkey;
         _config.SelectedLocation = defaults.SelectedLocation;
         _config.OutputScale = defaults.OutputScale;
         _config.OutputFormat = defaults.OutputFormat;
