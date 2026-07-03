@@ -117,8 +117,8 @@ public class ScreenshotOrchestrator
             {
                 _mod.LogFile.Warn("Screenshot timed out waiting for file.");
                 _hud.Hide();
-                _hud.Show(_mod.Helper.Translation.Get("error.timeout"));
                 Cleanup(false);
+                _hud.Show(_mod.Helper.Translation.Get("error.timeout"));
             }
             return;
         }
@@ -131,8 +131,8 @@ public class ScreenshotOrchestrator
             {
                 _mod.LogFile.Warn("Screenshot timed out waiting for file to be unlocked.");
                 _hud.Hide();
-                _hud.Show(_mod.Helper.Translation.Get("error.timeout"));
                 Cleanup(false);
+                _hud.Show(_mod.Helper.Translation.Get("error.timeout"));
             }
             return;
         }
@@ -149,12 +149,12 @@ public class ScreenshotOrchestrator
             _mod.LogFile.Error($"ProcessScreenshot failed: {ex.Message}");
             _mod.Monitor.Log($"Screenshot processing failed: {ex}", LogLevel.Error);
 
+            Cleanup(false);
+
             if (ex is UnauthorizedAccessException or IOException)
                 _hud.Show(_mod.Helper.Translation.Get("error.disk_full"));
             else
                 _hud.Show(string.Format(_mod.Helper.Translation.Get("log.screenshot_failed"), ex.Message));
-
-            Cleanup(false);
         }
     }
 
@@ -166,11 +166,8 @@ public class ScreenshotOrchestrator
         var gd = Game1.graphics.GraphicsDevice;
 
         // Load the PNG file as a GPU texture
-        Texture2D sourceTexture;
-        using (var stream = File.OpenRead(screenshotPath))
-        {
-            sourceTexture = Texture2D.FromStream(gd, stream);
-        }
+        using var stream = File.OpenRead(screenshotPath);
+        using var sourceTexture = Texture2D.FromStream(gd, stream);
 
         _mod.LogFile.Debug($"Loaded screenshot: {sourceTexture.Width}x{sourceTexture.Height}");
 

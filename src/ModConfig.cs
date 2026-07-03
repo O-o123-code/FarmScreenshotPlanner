@@ -31,8 +31,8 @@ public class GridConfig
 
     public void Validate()
     {
-        // 限制 Thickness 在合理范围内
-        Thickness = Math.Clamp(Thickness, 1, 10);
+        // 限制 Thickness 在合理范围内（与 GMCM 上限一致）
+        Thickness = Math.Clamp(Thickness, 1, 3);
 
         // 限制 Opacity 在 0-1 范围内
         Opacity = Math.Clamp(Opacity, 0f, 1f);

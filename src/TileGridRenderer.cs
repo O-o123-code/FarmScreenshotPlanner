@@ -74,8 +74,11 @@ public class TileGridRenderer
         var key = new GridCacheKey(width, height, sourceWidth,
             config.Grid.Thickness, config.Grid.Opacity, config.Grid.Color);
 
-        if (_cachedGridTexture is not null && _lastKey == key && !_cachedGridTexture.IsDisposed)
+        if (_cachedGridTexture is not null && _lastKey == key && !_cachedGridTexture.IsDisposed
+            && _cachedGridTexture is not RenderTarget2D { IsContentLost: true })
+        {
             return _cachedGridTexture;
+        }
 
         _cachedGridTexture?.Dispose();
         _lastKey = key;
@@ -134,15 +137,8 @@ public class TileGridRenderer
         sb.End();
         gd.SetRenderTargets(originalTargets);
 
-        // Copy render target to a plain texture
-        var gridTexture = new Texture2D(gd, width, height);
-        var data = new Color[width * height];
-        gridRT.GetData(data);
-        gridTexture.SetData(data);
-        gridRT.Dispose();
         cellTexture.Dispose();
-
-        return gridTexture;
+        return gridRT;
     }
 
     private static Color ParseHexColor(string hex, float opacity)

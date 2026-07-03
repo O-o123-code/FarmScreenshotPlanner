@@ -70,7 +70,15 @@ public class RollingFileLogger : IDisposable
         }
         catch
         {
-            _disposed = true;
+            try
+            {
+                var fs = new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                _writer = new StreamWriter(fs) { AutoFlush = true };
+            }
+            catch
+            {
+                _disposed = true;
+            }
         }
     }
 
