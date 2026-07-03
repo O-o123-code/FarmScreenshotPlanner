@@ -18,7 +18,7 @@ public class ModConfig
     public int JpegQuality { get; set; } = 90;
     public string SavePath { get; set; } = string.Empty;
     public bool UseGameScreenshotFolder { get; set; } = false;
-    public bool DeleteGameOriginal { get; set; } = true;
+    public bool DeleteGameOriginal { get; set; } = false;
     public GridConfig Grid { get; set; } = new();
 
     public void Validate()
@@ -37,7 +37,7 @@ public class ModConfig
 public class GridConfig
 {
     public bool Enabled { get; set; } = true;
-    public string Color { get; set; } = "00000040";
+    public string Color { get; set; } = "00000060";
     public int Thickness { get; set; } = 1;
     public float Opacity { get; set; } = 0.5f;
 
@@ -52,7 +52,7 @@ public class GridConfig
         // 验证 Color 格式（应为 8 位十六进制）
         if (string.IsNullOrEmpty(Color) || Color.Length != 8 || !IsValidHex(Color))
         {
-            Color = "00000040";
+            Color = "00000060";
         }
     }
 

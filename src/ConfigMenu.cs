@@ -63,8 +63,9 @@ public class ConfigMenu
 
     private void OnWarped(object? sender, StardewModdingAPI.Events.WarpedEventArgs e)
     {
-        // Invalidate cache when player warps (may have entered/exited a building)
+        // Invalidate cache and rebuild menu when player warps (may have entered/exited a building)
         _cachedLocationOptions = null;
+        RebuildMenu();
     }
 
     private void RebuildMenu()

@@ -16,7 +16,6 @@ public class ScreenshotOrchestrator
 
     private bool _isRendering;
     private string? _screenshotFolder;
-    private GameLocation? _pendingLocation;
     private string? _pendingPrefix;
     private int _waitTicks;
     private DateTime _captureStartTime;  // 截图开始时间，用于区分新旧文件
@@ -80,7 +79,6 @@ public class ScreenshotOrchestrator
             _hud.Show(_mod.Helper.Translation.Get("hud.rendering"));
 
             _screenshotFolder = Game1.game1.GetScreenshotFolder(true);
-            _pendingLocation = location;
             _pendingPrefix = location.Name ?? "Unknown";
             _waitTicks = 0;
             _captureStartTime = DateTime.Now;  // 记录截图开始时间
@@ -92,6 +90,12 @@ public class ScreenshotOrchestrator
             _mod.Monitor.Debug($"Invoking takeMapScreenshot for location: {location.Name}");
             string? result = InvokeGameScreenshot(location, 1f, _pendingPrefix);
             _mod.Monitor.Debug($"takeMapScreenshot returned: {result ?? "(null)"}");
+
+            if (result is null)
+            {
+                Cleanup(false);
+                return;
+            }
 
             // Start async polling for the screenshot file
             _mod.Helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
@@ -455,7 +459,6 @@ public class ScreenshotOrchestrator
         if (!success)
             _hud.Hide();
         _isRendering = false;
-        _pendingLocation = null;
         _pendingPrefix = null;
     }
 }

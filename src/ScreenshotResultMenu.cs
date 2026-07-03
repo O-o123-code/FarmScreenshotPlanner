@@ -28,6 +28,8 @@ public class ScreenshotResultMenu : IClickableMenu
     private int _cooldownTimer;
     private Texture2D? _thumbnail;
     private bool _isZoomed;
+    private int _zoomLevel;
+    private int _lastScrollValue;
     private Rectangle _thumbRect;
 
     public ScreenshotResultMenu(string filePath, string locationDisplayName, ModEntry mod)
@@ -102,6 +104,26 @@ public class ScreenshotResultMenu : IClickableMenu
         base.update(time);
         if (_cooldownTimer > 0)
             _cooldownTimer -= time.ElapsedGameTime.Milliseconds;
+
+        // 滚轮缩放检测
+        if (_isZoomed && _thumbnail is not null)
+        {
+            int scrollValue = Mouse.GetState().ScrollWheelValue;
+            int delta = scrollValue - _lastScrollValue;
+            _lastScrollValue = scrollValue;
+
+            if (delta != 0)
+            {
+                int maxZoom = Math.Max(1, (int)Math.Floor(Math.Max(
+                    (float)Game1.uiViewport.Width / _thumbnail.Width,
+                    (float)Game1.uiViewport.Height / _thumbnail.Height)));
+
+                if (delta > 0)
+                    _zoomLevel = Math.Min(_zoomLevel + 1, maxZoom);
+                else
+                    _zoomLevel = Math.Max(_zoomLevel - 1, 1);
+            }
+        }
     }
 
     public override void receiveKeyPress(Keys key)
@@ -132,6 +154,10 @@ public class ScreenshotResultMenu : IClickableMenu
         if (_thumbnail is not null && _thumbRect.Contains(x, y))
         {
             _isZoomed = true;
+            _zoomLevel = Math.Max(1, (int)Math.Floor(Math.Min(
+                (float)Game1.uiViewport.Width / _thumbnail.Width,
+                (float)Game1.uiViewport.Height / _thumbnail.Height)));
+            _lastScrollValue = Mouse.GetState().ScrollWheelValue;
             return;
         }
 
@@ -186,11 +212,8 @@ public class ScreenshotResultMenu : IClickableMenu
         b.End();
 
         // Session 2: 缩略图（最近邻采样 + 整数倍缩放，保持网格与文件管理器一致）
-        int intScale = Math.Max(1, (int)Math.Floor(Math.Min(
-            (float)Game1.uiViewport.Width / _thumbnail!.Width,
-            (float)Game1.uiViewport.Height / _thumbnail.Height)));
-        int drawW = _thumbnail.Width * intScale;
-        int drawH = _thumbnail.Height * intScale;
+        int drawW = _thumbnail!.Width * _zoomLevel;
+        int drawH = _thumbnail.Height * _zoomLevel;
         int drawX = (Game1.uiViewport.Width - drawW) / 2;
         int drawY = (Game1.uiViewport.Height - drawH) / 2;
 
@@ -199,15 +222,24 @@ public class ScreenshotResultMenu : IClickableMenu
         b.Draw(_thumbnail, new Rectangle(drawX, drawY, drawW, drawH), Color.White);
         b.End();
 
-        // Session 3: 提示文字 + 鼠标（默认线性采样）
+        // Session 3: 提示文字 + 倍率标签 + 鼠标（默认线性采样）
         b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+
+        // 左上角倍率标签
+        string zoomLabel = $"{_zoomLevel}x";
+        Utility.drawTextWithShadow(b, zoomLabel, Game1.dialogueFont,
+            new Vector2(20, 20), Color.White);
+
+        // 底部提示
         string hint = _mod.Helper.Translation.Get("ui.zoom_hint");
         Vector2 hintSize = Game1.smallFont.MeasureString(hint);
+        int hintY = Math.Min(
+            drawY + drawH + 12,
+            Game1.uiViewport.Height - (int)hintSize.Y - 12);
         Utility.drawTextWithShadow(b, hint, Game1.smallFont,
-            new Vector2(
-                (Game1.uiViewport.Width - hintSize.X) / 2,
-                drawY + drawH + 12),
+            new Vector2((Game1.uiViewport.Width - hintSize.X) / 2, hintY),
             Color.White);
+
         drawMouse(b);
         b.End();
     }

@@ -10,6 +10,13 @@ public class TileGridRenderer
 
     private static Texture2D? _pixel;
 
+    private static readonly SamplerState WrapSampler = new()
+    {
+        Filter = TextureFilter.Point,
+        AddressU = TextureAddressMode.Wrap,
+        AddressV = TextureAddressMode.Wrap
+    };
+
     private sealed record GridCacheKey(
         int Width, int Height, int SourceWidth,
         int Thickness, float Opacity, string Color);
@@ -119,14 +126,8 @@ public class TileGridRenderer
         gd.Clear(Color.Transparent);
 
         using var sb = new SpriteBatch(gd);
-        var wrapSampler = new SamplerState
-        {
-            Filter = TextureFilter.Point,
-            AddressU = TextureAddressMode.Wrap,
-            AddressV = TextureAddressMode.Wrap
-        };
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
-            wrapSampler, DepthStencilState.None,
+            WrapSampler, DepthStencilState.None,
             RasterizerState.CullNone);
 
         // Tile the cell pattern across the full area — single Draw call with wrap mode
