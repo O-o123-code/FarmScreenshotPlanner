@@ -63,7 +63,6 @@ public class TileGridRenderer
         finally
         {
             gd.SetRenderTargets(originalTargets);
-            source.Dispose();
         }
 
         return finalRT;
@@ -133,6 +132,16 @@ public class TileGridRenderer
         // Tile the cell pattern across the full area — single Draw call with wrap mode
         sb.Draw(cellTexture, new Rectangle(0, 0, width, height),
             new Rectangle(0, 0, width, height), Color.White);
+
+        // Draw right and bottom edge lines (not covered by wrap mode)
+        var pixel = GetOrCreatePixel(gd);
+        for (int t = 0; t < thickness; t++)
+        {
+            // Right edge
+            sb.Draw(pixel, new Rectangle(width - thickness + t, 0, 1, height), gridColor);
+            // Bottom edge
+            sb.Draw(pixel, new Rectangle(0, height - thickness + t, width, 1), gridColor);
+        }
 
         sb.End();
         gd.SetRenderTargets(originalTargets);

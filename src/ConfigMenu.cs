@@ -88,7 +88,14 @@ public class ConfigMenu
         _api.AddKeybindList(manifest,
             () => _config.Hotkey,
             val => _config.Hotkey = val,
-            () => _helper.Translation.Get("gmcm.hotkey"));
+            () => _helper.Translation.Get("gmcm.hotkey"),
+            tooltip: () => _helper.Translation.Get("gmcm.hotkey_tooltip"));
+
+        _api.AddKeybindList(manifest,
+            () => _config.CancelHotkey,
+            val => _config.CancelHotkey = val,
+            () => _helper.Translation.Get("gmcm.cancel_hotkey"),
+            tooltip: () => _helper.Translation.Get("gmcm.cancel_hotkey_tooltip"));
 
         var locations = GetCachedLocationOptions();
 
@@ -144,9 +151,17 @@ public class ConfigMenu
             () => _helper.Translation.Get("gmcm.grid_opacity"),
             min: 0f, max: 1f, interval: 0.05f);
 
-        string savePathDisplay = string.IsNullOrEmpty(_config.SavePath)
-            ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
-            : _config.SavePath;
+        _api.AddBoolOption(manifest,
+            () => _config.UseGameScreenshotFolder,
+            val => _config.UseGameScreenshotFolder = val,
+            () => _helper.Translation.Get("gmcm.use_game_screenshot_folder"),
+            tooltip: () => _helper.Translation.Get("gmcm.use_game_screenshot_folder_tooltip"));
+
+        string savePathDisplay = _config.UseGameScreenshotFolder
+            ? Game1.game1.GetScreenshotFolder(false)
+            : (string.IsNullOrEmpty(_config.SavePath)
+                ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
+                : _config.SavePath);
         _api.AddParagraph(manifest, () =>
             _helper.Translation.Get("gmcm.save_path_label") + ": " + savePathDisplay);
 
@@ -196,10 +211,11 @@ public class ConfigMenu
             return _cachedLocationOptions;
         }
 
-        // 重新构建位置列表
+        // 重新构建位置列表（按显示名称排序）
         bool preferLocalized = lang == LocalizedContentManager.LanguageCode.zh;
         _cachedLocationOptions = _mod.LocationService.GetLocations()
             .Select(loc => preferLocalized ? (loc.GetDisplayName() ?? loc.Name ?? "Unknown") : (loc.Name ?? "Unknown"))
+            .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
             .Prepend(_helper.Translation.Get("config.current_location"))
             .ToArray();
         _cachedLocationCount = locationCount;

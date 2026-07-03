@@ -67,7 +67,7 @@ public class ScreenshotOrchestrator
             _mod.LogFile.Debug($"Resolved location: {location.Name ?? "null"}");
 
             _freezer.Freeze();
-            _hud.Show(_mod.Helper.Translation.Get("hud.rendering"));
+            _hud.Show(string.Format(_mod.Helper.Translation.Get("hud.rendering"), _mod.Config.CancelHotkey));
 
             // Record existing screenshots so we can detect the new file by elimination
             _screenshotFolder = Game1.game1.GetScreenshotFolder(true);
@@ -358,9 +358,15 @@ public class ScreenshotOrchestrator
 
     private string ResolveSaveDirectory()
     {
-        return string.IsNullOrEmpty(_mod.Config.SavePath)
-            ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
-            : _mod.Config.SavePath;
+        if (_mod.Config.UseGameScreenshotFolder)
+        {
+            return Game1.game1.GetScreenshotFolder(true);
+        }
+        if (!string.IsNullOrWhiteSpace(_mod.Config.SavePath))
+        {
+            return _mod.Config.SavePath;
+        }
+        return Path.Combine(_mod.Helper.DirectoryPath, "Screenshots");
     }
 
     /// <summary>

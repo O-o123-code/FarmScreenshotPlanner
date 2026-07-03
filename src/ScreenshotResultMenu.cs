@@ -13,6 +13,7 @@ public class ScreenshotResultMenu : IClickableMenu
     private readonly ModEntry _mod;
     private readonly List<ClickableComponent> _buttons = new();
     private int _cooldownTimer;
+    private Texture2D? _thumbnail;
 
     public ScreenshotResultMenu(string filePath, string locationDisplayName, ModEntry mod)
         : base(
@@ -27,6 +28,20 @@ public class ScreenshotResultMenu : IClickableMenu
         exitFunction = null;
         _cooldownTimer = 0;
 
+        // 加载缩略图
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                using var stream = File.OpenRead(filePath);
+                _thumbnail = Texture2D.FromStream(Game1.graphics.GraphicsDevice, stream);
+            }
+        }
+        catch (Exception ex)
+        {
+            mod.LogFile.Warn($"Failed to load thumbnail: {ex.Message}");
+        }
+
         string openLabel = mod.Helper.Translation.Get("ui.open_folder");
         string closeLabel = mod.Helper.Translation.Get("ui.close");
 
@@ -35,6 +50,12 @@ public class ScreenshotResultMenu : IClickableMenu
         int gap = 16;
         int totalW = btnW * 2 + gap;
         int btnY = yPositionOnScreen + height - 64;
+
+        // 如果有缩略图，调整按钮位置
+        if (_thumbnail is not null)
+        {
+            btnY = yPositionOnScreen + 170;
+        }
 
         _buttons.Add(new ClickableComponent(
             new Rectangle(
@@ -111,6 +132,20 @@ public class ScreenshotResultMenu : IClickableMenu
                 xPositionOnScreen + (width - titleSize.X) / 2,
                 yPositionOnScreen + 28),
             Game1.textColor);
+
+        // 绘制缩略图
+        if (_thumbnail is not null)
+        {
+            int thumbMaxW = 160;
+            int thumbMaxH = 100;
+            float scale = Math.Min((float)thumbMaxW / _thumbnail.Width, (float)thumbMaxH / _thumbnail.Height);
+            int thumbW = (int)(_thumbnail.Width * scale);
+            int thumbH = (int)(_thumbnail.Height * scale);
+            int thumbX = xPositionOnScreen + (width - thumbW) / 2;
+            int thumbY = yPositionOnScreen + 60;
+
+            b.Draw(_thumbnail, new Rectangle(thumbX, thumbY, thumbW, thumbH), Color.White);
+        }
 
         foreach (var btn in _buttons)
         {

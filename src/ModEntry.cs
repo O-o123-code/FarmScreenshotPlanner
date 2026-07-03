@@ -47,6 +47,10 @@ public class ModEntry : Mod
         {
             Orchestrator.ExecuteCapture(Config.SelectedLocation);
         }
+        else if (Config.CancelHotkey.JustPressed() && Orchestrator.IsRendering)
+        {
+            Orchestrator.CancelCapture();
+        }
     }
 
     private void OnFarmScreenshotCommand(string command, string[] args)

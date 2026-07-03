@@ -19,9 +19,20 @@ public class LocationService
         {
             if (IsFiltered(location)) continue;
             yield return location;
+            
+            // 展开 Farm 类型的建筑内部
             if (location is Farm farm)
             {
                 foreach (var building in farm.buildings)
+                {
+                    if (building.indoors.Value is not null && !IsFiltered(building.indoors.Value))
+                        yield return building.indoors.Value;
+                }
+            }
+            // 展开 IslandLocation（姜岛）的建筑内部
+            else if (location is IslandLocation island)
+            {
+                foreach (var building in island.buildings)
                 {
                     if (building.indoors.Value is not null && !IsFiltered(building.indoors.Value))
                         yield return building.indoors.Value;
