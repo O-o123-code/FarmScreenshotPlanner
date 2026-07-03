@@ -185,12 +185,12 @@ public class ScreenshotResultMenu : IClickableMenu
             Color.Black * 0.85f);
         b.End();
 
-        // Session 2: 缩略图（最近邻采样，保持像素画网格一致）
-        float scale = Math.Min(
+        // Session 2: 缩略图（最近邻采样 + 整数倍缩放，保持网格与文件管理器一致）
+        int intScale = Math.Max(1, (int)Math.Floor(Math.Min(
             (float)Game1.uiViewport.Width / _thumbnail!.Width,
-            (float)Game1.uiViewport.Height / _thumbnail.Height) * 0.95f;
-        int drawW = Math.Max(1, (int)(_thumbnail.Width * scale));
-        int drawH = Math.Max(1, (int)(_thumbnail.Height * scale));
+            (float)Game1.uiViewport.Height / _thumbnail.Height)));
+        int drawW = _thumbnail.Width * intScale;
+        int drawH = _thumbnail.Height * intScale;
         int drawX = (Game1.uiViewport.Width - drawW) / 2;
         int drawY = (Game1.uiViewport.Height - drawH) / 2;
 
