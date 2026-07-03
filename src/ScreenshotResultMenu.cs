@@ -18,7 +18,7 @@ public class ScreenshotResultMenu : IClickableMenu
         : base(
             (Game1.uiViewport.Width - 480) / 2,
             (Game1.uiViewport.Height - 220) / 2,
-            480, 220)
+            480, 220, false)
     {
         _filePath = filePath;
         _mod = mod;

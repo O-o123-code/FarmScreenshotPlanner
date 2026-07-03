@@ -94,6 +94,16 @@ public class ScreenshotOrchestrator
         }
     }
 
+    public void CancelCapture()
+    {
+        if (!_isRendering) return;
+        
+        _mod.LogFile.Info("Screenshot cancelled by player (Escape pressed).");
+        _hud.Hide();
+        _hud.Show(_mod.Helper.Translation.Get("hud.cancelled"));
+        Cleanup(false);
+    }
+
     private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
     {
         // Safety: abort if a menu was opened during the async wait
@@ -186,37 +196,38 @@ public class ScreenshotOrchestrator
 
         _mod.LogFile.Debug($"Final output size: {finalW}x{finalH}");
 
-        // Apply grid overlay (also disposes sourceTexture)
         var finalRT = _gridRenderer.Apply(sourceTexture, _mod.Config, finalW, finalH);
-
-        // Save to configured output directory
-        string saveDir = ResolveSaveDirectory();
-        _mod.LogFile.Debug($"Saving to directory: {saveDir}, prefix: {_pendingPrefix}");
-        string savePath = _saver.Save(finalRT, saveDir, _pendingPrefix!);
-
-        finalRT.Dispose();
-
-        // Delete the game's original screenshot if configured
-        if (_mod.Config.DeleteGameOriginal)
+        try
         {
-            try
+            string saveDir = ResolveSaveDirectory();
+            _mod.LogFile.Debug($"Saving to directory: {saveDir}, prefix: {_pendingPrefix}");
+            string savePath = _saver.Save(finalRT, saveDir, _pendingPrefix!);
+
+            if (_mod.Config.DeleteGameOriginal)
             {
-                File.Delete(screenshotPath);
-                _mod.LogFile.Debug($"Deleted game original: {screenshotPath}");
+                try
+                {
+                    File.Delete(screenshotPath);
+                    _mod.LogFile.Debug($"Deleted game original: {screenshotPath}");
+                }
+                catch (Exception ex)
+                {
+                    _mod.LogFile.Warn($"Failed to delete game original: {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                _mod.LogFile.Warn($"Failed to delete game original: {ex.Message}");
-            }
+
+            _hud.Hide();
+            _hud.Show(_mod.Helper.Translation.Get("hud.saved_brief"));
+
+            _mod.LogFile.Info($"Screenshot saved: {savePath}");
+            _mod.Monitor.Log($"Screenshot saved: {savePath}", LogLevel.Info);
+
+            Game1.activeClickableMenu = new ScreenshotResultMenu(savePath, _pendingPrefix!, _mod);
         }
-
-        _hud.Hide();
-        _hud.Show(_mod.Helper.Translation.Get("hud.saved_brief"));
-
-        _mod.LogFile.Info($"Screenshot saved: {savePath}");
-        _mod.Monitor.Log($"Screenshot saved: {savePath}", LogLevel.Info);
-
-        Game1.activeClickableMenu = new ScreenshotResultMenu(savePath, _pendingPrefix!, _mod);
+        finally
+        {
+            finalRT.Dispose();
+        }
     }
 
     /// <summary>

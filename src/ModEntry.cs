@@ -21,8 +21,9 @@ public class ModEntry : Mod
         Config = helper.ReadConfig<ModConfig>();
         Config.Validate();
 
-        helper.Events.Input.ButtonsChanged += OnButtonsChanged;
+        helper.Events.Input.ButtonPressed += OnButtonPressed;
         helper.ConsoleCommands.Add("farm_screenshot", "Capture a full-resolution farm screenshot.\n\nUsage: farm_screenshot [location_name]\nIf no location is specified, uses the configured region.", OnFarmScreenshotCommand);
+        helper.ConsoleCommands.Add("farm_screenshot_cancel", "Cancel an in-progress screenshot capture.", OnFarmScreenshotCancelCommand);
 
         LocationService = new();
         Orchestrator = new(this);
@@ -38,10 +39,11 @@ public class ModEntry : Mod
         ConfigMenu.TryRegister(Helper);
     }
 
-    private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
+    private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
     {
         if (!Context.IsWorldReady) return;
-        if (Config.Hotkey.Keybinds.Any(k => k.Buttons.Any(b => e.Pressed.Contains(b))))
+
+        if (Config.Hotkey.JustPressed())
         {
             Orchestrator.ExecuteCapture(Config.SelectedLocation);
         }
@@ -58,5 +60,17 @@ public class ModEntry : Mod
 
         string? locationName = args.Length > 0 ? string.Join(" ", args) : null;
         Orchestrator.ExecuteCapture(locationName);
+    }
+
+    private void OnFarmScreenshotCancelCommand(string command, string[] args)
+    {
+        if (!Orchestrator.IsRendering)
+        {
+            Monitor.Log("No screenshot in progress.", LogLevel.Info);
+            return;
+        }
+
+        Orchestrator.CancelCapture();
+        Monitor.Log("Screenshot cancelled.", LogLevel.Info);
     }
 }

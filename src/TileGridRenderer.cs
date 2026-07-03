@@ -148,6 +148,6 @@ public class TileGridRenderer
         byte g = Convert.ToByte(hex[2..4], 16);
         byte b = Convert.ToByte(hex[4..6], 16);
         byte a = Convert.ToByte(hex[6..8], 16);
-        return new Color(r, g, b) * (a / 255f * opacity);
+        return new Color(r, g, b) * opacity;
     }
 }

@@ -2,6 +2,7 @@
   "hud.rendering": "Generating image, please wait...",
   "hud.menu_open": "Please close the current menu first.",
   "hud.saved_brief": "Screenshot saved!",
+  "hud.cancelled": "Screenshot cancelled.",
   "hud.saved": "{title} saved to: {path}",
   "ui.open_folder": "Open Folder",
   "ui.close": "Close",

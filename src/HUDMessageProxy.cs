@@ -16,7 +16,7 @@ public class HUDMessageProxy
     {
         try
         {
-            _message = new HUDMessage(text, HUDMessage.achievement_type) { timeLeft = 5000f };
+            _message = new HUDMessage(text, 0) { timeLeft = 5000f };
             Game1.addHUDMessage(_message);
         }
         catch (Exception ex)

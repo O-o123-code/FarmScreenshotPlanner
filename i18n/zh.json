@@ -2,6 +2,7 @@
   "hud.rendering": "正在生成图片, 请稍候...",
   "hud.menu_open": "请先关闭当前菜单后再截图",
   "hud.saved_brief": "图片已保存！",
+  "hud.cancelled": "截图已取消。",
   "hud.saved": "{title}已保存至: {path}",
   "ui.open_folder": "打开文件夹",
   "ui.close": "关闭",
