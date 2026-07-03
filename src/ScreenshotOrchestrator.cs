@@ -254,6 +254,8 @@ public class ScreenshotOrchestrator
     /// <summary>
     /// Invokes Game1.takeMapScreenshot via reflection.
     /// Tries the private overload (with GameLocation) first, then falls back to the public one.
+    /// For the public overload, temporarily swaps Game1.currentLocation to the target location
+    /// so that any location can be captured regardless of where the player currently is.
     /// </summary>
     private string? InvokeGameScreenshot(GameLocation location, float scale, string name)
     {
@@ -277,15 +279,19 @@ public class ScreenshotOrchestrator
             typeof(float?), typeof(string), typeof(Action));
         if (methodPublic is not null)
         {
-            if (!location.NameOrUniqueName.Equals(Game1.currentLocation?.NameOrUniqueName, StringComparison.OrdinalIgnoreCase))
+            _mod.LogFile.Debug("Calling takeMapScreenshot(float?, string, Action) with location swap");
+
+            // Temporarily swap Game1.currentLocation to the target location
+            var originalLocation = Game1.currentLocation;
+            try
             {
-                _mod.LogFile.Warn($"Cannot target location '{location.Name}' — GameLocation overload not found. Using current location.");
-                _hud.Hide();
-                _hud.Show(_mod.Helper.Translation.Get("error.not_at_location"));
-                return null;
+                Game1.currentLocation = location;
+                return methodPublic.Invoke(game1, new object?[] { (float?)scale, name, onDone }) as string;
             }
-            _mod.LogFile.Debug("Calling takeMapScreenshot(float?, string, Action)");
-            return methodPublic.Invoke(game1, new object?[] { (float?)scale, name, onDone }) as string;
+            finally
+            {
+                Game1.currentLocation = originalLocation;
+            }
         }
 
         _mod.LogFile.Warn("takeMapScreenshot method not found in this game version.");
