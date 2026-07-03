@@ -26,3 +26,6 @@ config.json
 # Screenshots (generated, not source)
 screenshots/
 img/
+
+# Dev scripts
+inspect.csx
