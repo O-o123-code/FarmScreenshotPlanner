@@ -4,7 +4,13 @@ namespace FarmScreenshotPlanner;
 
 public class HUDMessageProxy
 {
+    private readonly RollingFileLogger _log;
     private HUDMessage? _message;
+
+    public HUDMessageProxy(RollingFileLogger log)
+    {
+        _log = log;
+    }
 
     public void Show(string text)
     {
@@ -21,9 +27,9 @@ public class HUDMessageProxy
                 Game1.hudMessages.Remove(_message);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // 忽略移除失败的情况，避免影响主流程
+            _log.Warn($"HUDMessageProxy.Hide failed: {ex.Message}");
         }
         _message = null;
     }

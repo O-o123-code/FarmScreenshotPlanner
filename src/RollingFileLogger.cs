@@ -48,23 +48,30 @@ public class RollingFileLogger : IDisposable
         _writer.Close();
         _writer = null;
 
-        for (int i = MaxFiles - 1; i >= 1; i--)
+        try
         {
-            string src = $"{_logPath}.{i}";
-            string dst = $"{_logPath}.{i + 1}";
-            if (File.Exists(dst)) File.Delete(dst);
-            if (File.Exists(src)) File.Move(src, dst);
-        }
+            for (int i = MaxFiles - 1; i >= 1; i--)
+            {
+                string src = $"{_logPath}.{i}";
+                string dst = $"{_logPath}.{i + 1}";
+                if (File.Exists(dst)) File.Delete(dst);
+                if (File.Exists(src)) File.Move(src, dst);
+            }
 
-        if (File.Exists(_logPath))
+            if (File.Exists(_logPath))
+            {
+                string first = $"{_logPath}.1";
+                if (File.Exists(first)) File.Delete(first);
+                File.Move(_logPath, first);
+            }
+
+            var fs = new FileStream(_logPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+            _writer = new StreamWriter(fs) { AutoFlush = true };
+        }
+        catch
         {
-            string first = $"{_logPath}.1";
-            if (File.Exists(first)) File.Delete(first);
-            File.Move(_logPath, first);
+            _disposed = true;
         }
-
-        var fs = new FileStream(_logPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-        _writer = new StreamWriter(fs) { AutoFlush = true };
     }
 
     public void Dispose()

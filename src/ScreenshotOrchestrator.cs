@@ -12,7 +12,7 @@ public class ScreenshotOrchestrator
     private readonly TileGridRenderer _gridRenderer = new();
     private readonly ScreenshotSaver _saver = new();
     private readonly TimeStateFreezer _freezer = new();
-    private readonly HUDMessageProxy _hud = new();
+    private readonly HUDMessageProxy _hud;
 
     private bool _isRendering;
     private string? _screenshotFolder;
@@ -20,6 +20,9 @@ public class ScreenshotOrchestrator
     private GameLocation? _pendingLocation;
     private string? _pendingPrefix;
     private int _waitTicks;
+
+    private MethodInfo? _cachedMethodWithLocation;
+    private MethodInfo? _cachedMethodPublic;
 
     private const int SafetyLimit = 16384;
     private const int TimeoutTicks = 600; // ~10 seconds at 60 ticks/sec
@@ -30,6 +33,7 @@ public class ScreenshotOrchestrator
     public ScreenshotOrchestrator(ModEntry mod)
     {
         _mod = mod;
+        _hud = new HUDMessageProxy(mod.LogFile);
     }
 
     public void ExecuteCapture(string? locationName = null)
@@ -62,7 +66,6 @@ public class ScreenshotOrchestrator
 
             _mod.LogFile.Debug($"Resolved location: {location.Name ?? "null"}");
 
-            // Normalize lighting (no pause — the game must keep running for takeMapScreenshot)
             _freezer.Freeze();
             _hud.Show(_mod.Helper.Translation.Get("hud.rendering"));
 
@@ -265,19 +268,19 @@ public class ScreenshotOrchestrator
 
         // Attempt 1: private overload with GameLocation parameter
         //   private String takeMapScreenshot(GameLocation, Single, String, Action)
-        var methodWithLocation = FindMethod(game1Type, "takeMapScreenshot",
+        _cachedMethodWithLocation ??= FindMethod(game1Type, "takeMapScreenshot",
             typeof(GameLocation), typeof(float), typeof(string), typeof(Action));
-        if (methodWithLocation is not null)
+        if (_cachedMethodWithLocation is not null)
         {
             _mod.LogFile.Debug("Calling takeMapScreenshot(GameLocation, float, string, Action)");
-            return methodWithLocation.Invoke(game1, new object[] { location, scale, name, onDone }) as string;
+            return _cachedMethodWithLocation.Invoke(game1, new object[] { location, scale, name, onDone }) as string;
         }
 
         // Attempt 2: public overload without GameLocation
         //   public String takeMapScreenshot(Nullable<Single>, String, Action)
-        var methodPublic = FindMethod(game1Type, "takeMapScreenshot",
+        _cachedMethodPublic ??= FindMethod(game1Type, "takeMapScreenshot",
             typeof(float?), typeof(string), typeof(Action));
-        if (methodPublic is not null)
+        if (_cachedMethodPublic is not null)
         {
             _mod.LogFile.Debug("Calling takeMapScreenshot(float?, string, Action) with location swap");
 
@@ -286,7 +289,7 @@ public class ScreenshotOrchestrator
             try
             {
                 Game1.currentLocation = location;
-                return methodPublic.Invoke(game1, new object?[] { (float?)scale, name, onDone }) as string;
+                return _cachedMethodPublic.Invoke(game1, new object?[] { (float?)scale, name, onDone }) as string;
             }
             finally
             {

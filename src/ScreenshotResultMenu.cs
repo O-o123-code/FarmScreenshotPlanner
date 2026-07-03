@@ -66,7 +66,11 @@ public class ScreenshotResultMenu : IClickableMenu
 
     public override void receiveKeyPress(Keys key)
     {
-        if (key == Keys.Escape) return;
+        if (key == Keys.Escape)
+        {
+            Game1.activeClickableMenu = null;
+            return;
+        }
         base.receiveKeyPress(key);
     }
 
@@ -80,7 +84,8 @@ public class ScreenshotResultMenu : IClickableMenu
             {
                 if (_cooldownTimer > 0) return;
                 _cooldownTimer = 1500;
-                PlatformHelper.TryRevealFileInExplorer(_filePath);
+                if (!PlatformHelper.TryRevealFileInExplorer(_filePath))
+                    _mod.LogFile.Warn($"Failed to reveal file in explorer: {_filePath}");
             }
             else if (btn.name == "close")
                 Game1.activeClickableMenu = null;
@@ -106,8 +111,6 @@ public class ScreenshotResultMenu : IClickableMenu
                 xPositionOnScreen + (width - titleSize.X) / 2,
                 yPositionOnScreen + 28),
             Game1.textColor);
-
-
 
         foreach (var btn in _buttons)
         {
