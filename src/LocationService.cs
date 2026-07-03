@@ -11,6 +11,7 @@ public class LocationService
         "BeachNightMarket",  // 夜市可能有纹理加载问题
         "Submarine",         // 潜水艇
         "AbandonedJojaMart", // 废弃的 Joja 超市
+        "BoatTunnel",        // 姜岛船隧道，draw() 有 null 纹理导致崩溃
     };
 
     private static readonly string[] FilteredLocationPrefixes = { 

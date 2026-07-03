@@ -1,13 +1,14 @@
+using StardewModdingAPI;
 using StardewValley;
 
 namespace FarmScreenshotPlanner;
 
 public class HUDMessageProxy
 {
-    private readonly RollingFileLogger _log;
+    private readonly IMonitor _log;
     private HUDMessage? _message;
 
-    public HUDMessageProxy(RollingFileLogger log)
+    public HUDMessageProxy(IMonitor log)
     {
         _log = log;
     }

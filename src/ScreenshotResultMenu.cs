@@ -46,7 +46,7 @@ public class ScreenshotResultMenu : IClickableMenu
         }
         catch (Exception ex)
         {
-            mod.LogFile.Warn($"Failed to load thumbnail: {ex.Message}");
+            mod.Monitor.Warn($"Failed to load thumbnail: {ex.Message}");
         }
 
         int btnW = 160;
@@ -65,7 +65,7 @@ public class ScreenshotResultMenu : IClickableMenu
             int thumbX = xPositionOnScreen + (width - thumbW) / 2;
             int thumbY = yPositionOnScreen + 64;
             _thumbRect = new Rectangle(thumbX, thumbY, thumbW, thumbH);
-            btnY = _thumbRect.Bottom + 16;
+            btnY = _thumbRect.Bottom + 36;
         }
 
         _buttons.Add(new ClickableComponent(
@@ -137,7 +137,7 @@ public class ScreenshotResultMenu : IClickableMenu
                 if (_cooldownTimer > 0) return;
                 _cooldownTimer = 1500;
                 if (!PlatformHelper.TryRevealFileInExplorer(_filePath))
-                    _mod.LogFile.Warn($"Failed to reveal file in explorer: {_filePath}");
+                    _mod.Monitor.Warn($"Failed to reveal file in explorer: {_filePath}");
             }
             else if (btn.name == "close")
             {

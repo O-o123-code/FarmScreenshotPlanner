@@ -6,7 +6,7 @@
   "ui.open_folder": "Open Folder",
   "ui.close": "Close",
   "ui.saved_title": "{0}'s Blueprint Saved",
-  "ui.click_to_zoom": "Click to preview",
+  "ui.click_to_zoom": "Click image to preview",
   "ui.zoom_hint": "Click anywhere or press Escape to return",
   "config.current_location": "Current Location",
   "gmcm.not_ready": "Load a save file first to see configuration options.",

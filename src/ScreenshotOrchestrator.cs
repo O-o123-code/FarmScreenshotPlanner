@@ -34,38 +34,38 @@ public class ScreenshotOrchestrator
     public ScreenshotOrchestrator(ModEntry mod)
     {
         _mod = mod;
-        _hud = new HUDMessageProxy(mod.LogFile);
+        _hud = new HUDMessageProxy(mod.Monitor);
     }
 
     public void ExecuteCapture(string? locationName = null)
     {
         if (_isRendering)
         {
-            _mod.LogFile.Warn("Screenshot already in progress, ignoring duplicate trigger.");
+            _mod.Monitor.Warn("Screenshot already in progress, ignoring duplicate trigger.");
             return;
         }
 
         if (Game1.activeClickableMenu is not null)
         {
             _hud.Show(_mod.Helper.Translation.Get("hud.menu_open"));
-            _mod.LogFile.Info("Screenshot aborted: a menu is open.");
+            _mod.Monitor.Info("Screenshot aborted: a menu is open.");
             return;
         }
 
         _isRendering = true;
         try
         {
-            _mod.LogFile.Debug($"ExecuteCapture triggered, locationName={(locationName ?? "null")}");
+            _mod.Monitor.Debug($"ExecuteCapture triggered, locationName={(locationName ?? "null")}");
 
             var location = ResolveLocation(locationName);
             if (location is null)
             {
-                _mod.LogFile.Warn("No valid location found for screenshot.");
+                _mod.Monitor.Warn("No valid location found for screenshot.");
                 _isRendering = false;
                 return;
             }
 
-            _mod.LogFile.Debug($"Resolved location: {location.Name ?? "null"}");
+            _mod.Monitor.Debug($"Resolved location: {location.Name ?? "null"}");
 
             _freezer.Freeze();
             _hud.Show(string.Format(_mod.Helper.Translation.Get("hud.rendering"), _mod.Config.CancelHotkey));
@@ -80,17 +80,16 @@ public class ScreenshotOrchestrator
             TryCleanupExistingScreenshot(_screenshotFolder, _pendingPrefix);
 
             // Invoke the game's built-in map screenshot (full scale for maximum quality)
-            _mod.LogFile.Debug($"Invoking takeMapScreenshot for location: {location.Name}");
+            _mod.Monitor.Debug($"Invoking takeMapScreenshot for location: {location.Name}");
             string? result = InvokeGameScreenshot(location, 1f, _pendingPrefix);
-            _mod.LogFile.Debug($"takeMapScreenshot returned: {result ?? "(null)"}");
+            _mod.Monitor.Debug($"takeMapScreenshot returned: {result ?? "(null)"}");
 
             // Start async polling for the screenshot file
             _mod.Helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
         }
         catch (Exception ex)
         {
-            _mod.LogFile.Error($"ExecuteCapture failed: {ex.Message}");
-            _mod.Monitor.Log($"Screenshot failed: {ex}", LogLevel.Error);
+            _mod.Monitor.Error($"ExecuteCapture failed: {ex.Message}");
             Cleanup(false);
         }
     }
@@ -99,7 +98,7 @@ public class ScreenshotOrchestrator
     {
         if (!_isRendering) return;
         
-        _mod.LogFile.Info($"Screenshot cancelled by player (CancelHotkey: {_mod.Config.CancelHotkey}).");
+        _mod.Monitor.Info($"Screenshot cancelled by player (CancelHotkey: {_mod.Config.CancelHotkey}).");
         _hud.Hide();
         _hud.Show(_mod.Helper.Translation.Get("hud.cancelled"));
         Cleanup(false);
@@ -110,7 +109,7 @@ public class ScreenshotOrchestrator
         // Safety: abort if a menu was opened during the async wait
         if (Game1.activeClickableMenu is not null)
         {
-            _mod.LogFile.Info("Screenshot aborted: menu opened during async wait.");
+            _mod.Monitor.Info("Screenshot aborted: menu opened during async wait.");
             Cleanup(false);
             return;
         }
@@ -135,10 +134,10 @@ public class ScreenshotOrchestrator
         
         if (latestFile is null)
         {
-            _mod.LogFile.Debug($"Poll #{_waitTicks}: waiting for game screenshot file with prefix: {_pendingPrefix}");
+            _mod.Monitor.Debug($"Poll #{_waitTicks}: waiting for game screenshot file with prefix: {_pendingPrefix}");
             if (_waitTicks >= TimeoutTicks)
             {
-                _mod.LogFile.Warn("Screenshot timed out waiting for game screenshot file.");
+                _mod.Monitor.Warn("Screenshot timed out waiting for game screenshot file.");
                 _hud.Hide();
                 Cleanup(false);
                 _hud.Show(_mod.Helper.Translation.Get("error.timeout"));
@@ -149,10 +148,10 @@ public class ScreenshotOrchestrator
         // File exists but may still be written by the game — wait until it's unlocked
         if (!FileIsReady(latestFile))
         {
-            _mod.LogFile.Debug($"File still locked, retrying: {latestFile}");
+            _mod.Monitor.Debug($"File still locked, retrying: {latestFile}");
             if (_waitTicks >= TimeoutTicks)
             {
-                _mod.LogFile.Warn("Screenshot timed out waiting for file to be unlocked.");
+                _mod.Monitor.Warn("Screenshot timed out waiting for file to be unlocked.");
                 _hud.Hide();
                 Cleanup(false);
                 _hud.Show(_mod.Helper.Translation.Get("error.timeout"));
@@ -160,7 +159,7 @@ public class ScreenshotOrchestrator
             return;
         }
 
-        _mod.LogFile.Info($"Game screenshot captured: {latestFile}");
+        _mod.Monitor.Info($"Game screenshot captured: {latestFile}");
 
         try
         {
@@ -169,8 +168,7 @@ public class ScreenshotOrchestrator
         }
         catch (Exception ex)
         {
-            _mod.LogFile.Error($"ProcessScreenshot failed: {ex.Message}");
-            _mod.Monitor.Log($"Screenshot processing failed: {ex}", LogLevel.Error);
+            _mod.Monitor.Error($"ProcessScreenshot failed: {ex.Message}");
 
             Cleanup(false);
 
@@ -195,7 +193,7 @@ public class ScreenshotOrchestrator
         
         if (!File.Exists(expectedFile))
         {
-            _mod.LogFile.Debug($"Expected file not found: {expectedFile}");
+            _mod.Monitor.Debug($"Expected file not found: {expectedFile}");
             return null;
         }
 
@@ -204,11 +202,11 @@ public class ScreenshotOrchestrator
         // 只接受截图开始后创建/修改的文件，避免匹配到旧截图
         if (fileInfo.LastWriteTime < _captureStartTime)
         {
-            _mod.LogFile.Debug($"File {fileInfo.Name} was created before capture started ({fileInfo.LastWriteTime:HH:mm:ss} < {_captureStartTime:HH:mm:ss})");
+            _mod.Monitor.Debug($"File {fileInfo.Name} was created before capture started ({fileInfo.LastWriteTime:HH:mm:ss} < {_captureStartTime:HH:mm:ss})");
             return null;
         }
 
-        _mod.LogFile.Debug($"Found screenshot file: {fileInfo.Name}");
+        _mod.Monitor.Debug($"Found screenshot file: {fileInfo.Name}");
         return fileInfo.FullName;
     }
 
@@ -224,7 +222,7 @@ public class ScreenshotOrchestrator
         using var stream = new FileStream(screenshotPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var sourceTexture = Texture2D.FromStream(gd, stream);
 
-        _mod.LogFile.Debug($"Loaded screenshot: {sourceTexture.Width}x{sourceTexture.Height}");
+        _mod.Monitor.Debug($"Loaded screenshot: {sourceTexture.Width}x{sourceTexture.Height}");
 
         // Calculate output dimensions based on configured scale
         float scale = _mod.Config.OutputScale;
@@ -236,16 +234,16 @@ public class ScreenshotOrchestrator
             float ratio = Math.Min(SafetyLimit / (float)finalW, SafetyLimit / (float)finalH);
             finalW = Math.Max(1, (int)(finalW * ratio));
             finalH = Math.Max(1, (int)(finalH * ratio));
-            _mod.LogFile.Warn($"Size exceeds safety limit, scaled to {finalW}x{finalH}");
+            _mod.Monitor.Warn($"Size exceeds safety limit, scaled to {finalW}x{finalH}");
         }
 
-        _mod.LogFile.Debug($"Final output size: {finalW}x{finalH}");
+        _mod.Monitor.Debug($"Final output size: {finalW}x{finalH}");
 
         var finalRT = _gridRenderer.Apply(sourceTexture, _mod.Config, finalW, finalH);
         try
         {
             string saveDir = ResolveSaveDirectory();
-            _mod.LogFile.Debug($"Saving to directory: {saveDir}, prefix: {_pendingPrefix}");
+            _mod.Monitor.Debug($"Saving to directory: {saveDir}, prefix: {_pendingPrefix}");
             string savePath = _saver.Save(finalRT, saveDir, _pendingPrefix!, _mod.Config);
 
             if (_mod.Config.DeleteGameOriginal)
@@ -257,11 +255,11 @@ public class ScreenshotOrchestrator
                         Thread.Sleep(50);
 
                     File.Delete(screenshotPath);
-                    _mod.LogFile.Debug($"Deleted game original: {screenshotPath}");
+                    _mod.Monitor.Debug($"Deleted game original: {screenshotPath}");
                 }
                 catch (Exception ex)
                 {
-                    _mod.LogFile.Warn($"Failed to delete game original: {ex.Message}");
+                    _mod.Monitor.Warn($"Failed to delete game original: {ex.Message}");
                     _hud.Hide();
                     _hud.Show(_mod.Helper.Translation.Get("error.delete_failed"));
                 }
@@ -270,8 +268,7 @@ public class ScreenshotOrchestrator
             _hud.Hide();
             _hud.Show(_mod.Helper.Translation.Get("hud.saved_brief"));
 
-            _mod.LogFile.Info($"Screenshot saved: {savePath}");
-            _mod.Monitor.Log($"Screenshot saved: {savePath}", LogLevel.Info);
+            _mod.Monitor.Info($"Screenshot saved: {savePath}");
 
             Game1.activeClickableMenu = new ScreenshotResultMenu(savePath, _pendingPrefix!, _mod);
         }
@@ -294,11 +291,11 @@ public class ScreenshotOrchestrator
         try
         {
             File.Delete(filePath);
-            _mod.LogFile.Debug($"Cleaned up existing screenshot: {filePath}");
+            _mod.Monitor.Debug($"Cleaned up existing screenshot: {filePath}");
         }
         catch (Exception ex)
         {
-            _mod.LogFile.Warn($"Failed to clean up existing screenshot: {ex.Message}");
+            _mod.Monitor.Warn($"Failed to clean up existing screenshot: {ex.Message}");
         }
     }
 
@@ -338,7 +335,7 @@ public class ScreenshotOrchestrator
             typeof(GameLocation), typeof(float), typeof(string), typeof(Action));
         if (_cachedMethodWithLocation is not null)
         {
-            _mod.LogFile.Debug("Calling takeMapScreenshot(GameLocation, float, string, Action)");
+            _mod.Monitor.Debug("Calling takeMapScreenshot(GameLocation, float, string, Action)");
             return _cachedMethodWithLocation.Invoke(game1, new object?[] { location, scale, name, null! }) as string;
         }
 
@@ -348,7 +345,7 @@ public class ScreenshotOrchestrator
             typeof(float?), typeof(string), typeof(Action));
         if (_cachedMethodPublic is not null)
         {
-            _mod.LogFile.Debug("Calling takeMapScreenshot(float?, string, Action) with location swap");
+            _mod.Monitor.Debug("Calling takeMapScreenshot(float?, string, Action) with location swap");
 
             // 保存原始位置，延迟到截图完成后再恢复
             // 因为 takeMapScreenshot 是异步的，渲染过程中需要访问 Game1.currentLocation
@@ -357,7 +354,7 @@ public class ScreenshotOrchestrator
             return _cachedMethodPublic.Invoke(game1, new object?[] { (float?)scale, name, null! }) as string;
         }
 
-        _mod.LogFile.Warn("takeMapScreenshot method not found in this game version.");
+        _mod.Monitor.Warn("takeMapScreenshot method not found in this game version.");
         _hud.Hide();
         _hud.Show(_mod.Helper.Translation.Get("error.game_screenshot_unavailable"));
         return null;

@@ -6,7 +6,7 @@
   "ui.open_folder": "打开文件夹",
   "ui.close": "关闭",
   "ui.saved_title": "{0}的蓝图已保存",
-  "ui.click_to_zoom": "点击预览大图",
+  "ui.click_to_zoom": "点击图片预览",
   "ui.zoom_hint": "点击任意位置或按 Esc 返回",
   "config.current_location": "当前所在区域",
   "gmcm.not_ready": "请先加载存档后再查看配置选项。",

@@ -39,7 +39,7 @@ public class ConfigMenu
     {
         if (!helper.ModRegistry.IsLoaded("spacechase0.GenericModConfigMenu"))
         {
-            _mod.LogFile.Info(helper.Translation.Get("log.gmcm_not_found"));
+            _mod.Monitor.Info(helper.Translation.Get("log.gmcm_not_found"));
             return;
         }
 

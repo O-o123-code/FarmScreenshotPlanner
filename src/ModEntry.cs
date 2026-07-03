@@ -8,15 +8,13 @@ namespace FarmScreenshotPlanner;
 public class ModEntry : Mod
 {
     internal ModConfig Config { get; private set; } = null!;
-    internal RollingFileLogger LogFile { get; private set; } = null!;
     internal LocationService LocationService { get; private set; } = null!;
     internal ScreenshotOrchestrator Orchestrator { get; private set; } = null!;
     internal ConfigMenu ConfigMenu { get; private set; } = null!;
 
     public override void Entry(IModHelper helper)
     {
-        LogFile = new RollingFileLogger(helper.DirectoryPath);
-        LogFile.Info("Mod initializing...");
+        Monitor.Info("Mod initializing...");
 
         Config = helper.ReadConfig<ModConfig>();
         Config.Validate();
@@ -31,7 +29,7 @@ public class ModEntry : Mod
 
         helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 
-        LogFile.Info("Mod initialized.");
+        Monitor.Info("Mod initialized.");
     }
 
     private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
@@ -57,8 +55,7 @@ public class ModEntry : Mod
     {
         if (!Context.IsWorldReady)
         {
-            LogFile.Warn("Command ignored: no save loaded.");
-            Monitor.Log("No save loaded. Please load a save first.", LogLevel.Warn);
+            Monitor.Warn("Command ignored: no save loaded.");
             return;
         }
 
@@ -70,11 +67,11 @@ public class ModEntry : Mod
     {
         if (!Orchestrator.IsRendering)
         {
-            Monitor.Log("No screenshot in progress.", LogLevel.Info);
+            Monitor.Info("No screenshot in progress.");
             return;
         }
 
         Orchestrator.CancelCapture();
-        Monitor.Log("Screenshot cancelled.", LogLevel.Info);
+        Monitor.Info("Screenshot cancelled.");
     }
 }
