@@ -36,6 +36,7 @@ public class TileGridRenderer
         gd.SetRenderTarget(finalRT);
         gd.Clear(Color.Transparent);
 
+        Texture2D? gridTexture = null;
         try
         {
             // Draw the source texture scaled to output size
@@ -46,23 +47,14 @@ public class TileGridRenderer
             sb.Draw(source, new Rectangle(0, 0, finalW, finalH), Color.White);
             sb.End();
 
-            // Overlay tile grid
+            // Overlay tile grid using tiled texture (single Draw call)
             if (config.Grid.Enabled)
             {
-                float actualScale = (float)finalW / source.Width;
-                int tilePx = Math.Max(1, (int)(64 * actualScale));
-
-                var pixel = GetOrCreatePixel(gd);
-                Color gridColor = ParseHexColor(config.Grid.Color, config.Grid.Opacity);
-
-                sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-
-                for (int x = 0; x < finalW; x += tilePx)
-                    sb.Draw(pixel, new Rectangle(x, 0, config.Grid.Thickness, finalH), gridColor);
-
-                for (int y = 0; y < finalH; y += tilePx)
-                    sb.Draw(pixel, new Rectangle(0, y, finalW, config.Grid.Thickness), gridColor);
-
+                gridTexture = CreateTiledGridTexture(gd, finalW, finalH, source.Width, config);
+                sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+                    SamplerState.LinearClamp, DepthStencilState.None,
+                    RasterizerState.CullNone);
+                sb.Draw(gridTexture, new Rectangle(0, 0, finalW, finalH), Color.White);
                 sb.End();
             }
         }
@@ -70,9 +62,72 @@ public class TileGridRenderer
         {
             gd.SetRenderTargets(originalTargets);
             source.Dispose();
+            gridTexture?.Dispose();
         }
 
         return finalRT;
+    }
+
+    /// <summary>
+    /// Creates a tiled grid texture using a single-cell pattern with wrap addressing.
+    /// This reduces hundreds of Draw Calls to a single tiled Draw.
+    /// </summary>
+    private static Texture2D CreateTiledGridTexture(GraphicsDevice gd, int width, int height, int sourceWidth, ModConfig config)
+    {
+        float actualScale = (float)width / sourceWidth;
+        int tilePx = Math.Max(1, (int)(64 * actualScale));
+        int thickness = config.Grid.Thickness;
+        Color gridColor = ParseHexColor(config.Grid.Color, config.Grid.Opacity);
+
+        // Create a single tile-cell pattern: transparent interior + grid lines on top/left edges
+        var cellData = new Color[tilePx * tilePx];
+        for (int y = 0; y < tilePx; y++)
+        {
+            for (int x = 0; x < tilePx; x++)
+            {
+                bool isGridLine = x < thickness || y < thickness;
+                cellData[y * tilePx + x] = isGridLine ? gridColor : Color.Transparent;
+            }
+        }
+
+        var cellTexture = new Texture2D(gd, tilePx, tilePx);
+        cellTexture.SetData(cellData);
+
+        // Render the tiled grid into a full-size texture using wrap mode
+        var gridRT = new RenderTarget2D(gd, width, height, false,
+            SurfaceFormat.Color, DepthFormat.None, 0,
+            RenderTargetUsage.PreserveContents);
+        var originalTargets = gd.GetRenderTargets();
+        gd.SetRenderTarget(gridRT);
+        gd.Clear(Color.Transparent);
+
+        using var sb = new SpriteBatch(gd);
+        var wrapSampler = new SamplerState
+        {
+            Filter = TextureFilter.Point,
+            AddressU = TextureAddressMode.Wrap,
+            AddressV = TextureAddressMode.Wrap
+        };
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+            wrapSampler, DepthStencilState.None,
+            RasterizerState.CullNone);
+
+        // Tile the cell pattern across the full area — single Draw call with wrap mode
+        sb.Draw(cellTexture, new Rectangle(0, 0, width, height),
+            new Rectangle(0, 0, width, height), Color.White);
+
+        sb.End();
+        gd.SetRenderTargets(originalTargets);
+
+        // Copy render target to a plain texture
+        var gridTexture = new Texture2D(gd, width, height);
+        var data = new Color[width * height];
+        gridRT.GetData(data);
+        gridTexture.SetData(data);
+        gridRT.Dispose();
+        cellTexture.Dispose();
+
+        return gridTexture;
     }
 
     private static Color ParseHexColor(string hex, float opacity)

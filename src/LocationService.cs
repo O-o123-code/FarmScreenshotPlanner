@@ -5,6 +5,14 @@ namespace FarmScreenshotPlanner;
 
 public class LocationService
 {
+    private static readonly HashSet<string> FilteredLocationNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Mine"
+    };
+
+    private static readonly string[] FilteredLocationPrefixes = { "UndergroundMine" };
+    private static readonly string[] FilteredLocationContains = { "VolcanoDungeon" };
+
     public IEnumerable<GameLocation> GetLocations()
     {
         foreach (var location in Game1.locations)
@@ -29,9 +37,23 @@ public class LocationService
 
     private static bool IsFiltered(GameLocation loc)
     {
-        return loc is MineShaft
-            || loc.Name?.StartsWith("UndergroundMine") == true
-            || loc.Name == "Mine"
-            || loc.Name?.Contains("VolcanoDungeon") == true;
+        if (loc is MineShaft) return true;
+
+        string? name = loc.Name;
+        if (string.IsNullOrEmpty(name)) return false;
+
+        if (FilteredLocationNames.Contains(name)) return true;
+
+        foreach (var prefix in FilteredLocationPrefixes)
+        {
+            if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+
+        foreach (var contains in FilteredLocationContains)
+        {
+            if (name.Contains(contains, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+
+        return false;
     }
 }

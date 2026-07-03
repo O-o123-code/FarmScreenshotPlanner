@@ -19,6 +19,7 @@ public class ModEntry : Mod
         LogFile.Info("Mod initializing...");
 
         Config = helper.ReadConfig<ModConfig>();
+        Config.Validate();
         if (Config.SelectedLocation == "Current Location")
             Config.SelectedLocation = helper.Translation.Get("config.current_location");
 

@@ -14,9 +14,16 @@ public class HUDMessageProxy
 
     public void Hide()
     {
-        if (_message is not null && Game1.hudMessages.Contains(_message))
+        try
         {
-            Game1.hudMessages.Remove(_message);
+            if (_message is not null && Game1.hudMessages.Contains(_message))
+            {
+                Game1.hudMessages.Remove(_message);
+            }
+        }
+        catch (Exception)
+        {
+            // 忽略移除失败的情况，避免影响主流程
         }
         _message = null;
     }

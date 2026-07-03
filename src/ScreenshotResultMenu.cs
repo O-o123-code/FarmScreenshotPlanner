@@ -80,7 +80,7 @@ public class ScreenshotResultMenu : IClickableMenu
             {
                 if (_cooldownTimer > 0) return;
                 _cooldownTimer = 1500;
-                PlatformHelper.RevealFileInExplorer(_filePath);
+                PlatformHelper.TryRevealFileInExplorer(_filePath);
             }
             else if (btn.name == "close")
                 Game1.activeClickableMenu = null;

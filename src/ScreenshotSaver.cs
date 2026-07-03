@@ -9,15 +9,9 @@ public class ScreenshotSaver
         string fileName = $"{SanitizeFileName(prefix)}_{DateTime.Now:yyyyMMdd_HHmmss}.png";
         string fullPath = Path.Combine(directory, fileName);
 
-        byte[] pngBytes;
-        using (var stream = new MemoryStream())
-        {
-            target.SaveAsPng(stream, target.Width, target.Height);
-            pngBytes = stream.ToArray();
-        }
-
         Directory.CreateDirectory(directory);
-        File.WriteAllBytes(fullPath, pngBytes);
+        using var stream = File.Create(fullPath);
+        target.SaveAsPng(stream, target.Width, target.Height);
         return fullPath;
     }
 

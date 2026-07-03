@@ -23,6 +23,11 @@ public class ConfigMenu
     private readonly ModConfig _config;
     private IGenericModConfigMenuApi? _api;
     private IModHelper? _helper;
+    
+    // 缓存位置列表，避免每次重建菜单时重新获取
+    private string[]? _cachedLocationOptions;
+    private int _cachedLocationCount;
+    private LocalizedContentManager.LanguageCode _cachedLanguage;
 
     public ConfigMenu(ModEntry mod)
     {
@@ -74,12 +79,7 @@ public class ConfigMenu
             val => _config.Hotkey = val,
             () => _helper.Translation.Get("gmcm.hotkey"));
 
-        var lang = Game1.content.GetCurrentLanguage();
-        bool preferLocalized = lang == LocalizedContentManager.LanguageCode.zh;
-        var locations = _mod.LocationService.GetLocations()
-            .Select(loc => preferLocalized ? (loc.GetDisplayName() ?? loc.Name ?? "Unknown") : (loc.Name ?? "Unknown"))
-            .Prepend(_helper.Translation.Get("config.current_location"))
-            .ToArray();
+        var locations = GetCachedLocationOptions();
 
         _api.AddTextOption(manifest,
             () => _config.SelectedLocation,
@@ -165,4 +165,31 @@ public class ConfigMenu
     }
 
     private void Save() => _mod.Helper.WriteConfig(_config);
+
+    private string[] GetCachedLocationOptions()
+    {
+        if (_helper is null) return Array.Empty<string>();
+
+        var lang = Game1.content.GetCurrentLanguage();
+        int locationCount = _mod.LocationService.GetLocations().Count();
+
+        // 如果缓存有效（位置数量和语言未变化），直接返回缓存
+        if (_cachedLocationOptions is not null
+            && _cachedLocationCount == locationCount
+            && _cachedLanguage == lang)
+        {
+            return _cachedLocationOptions;
+        }
+
+        // 重新构建位置列表
+        bool preferLocalized = lang == LocalizedContentManager.LanguageCode.zh;
+        _cachedLocationOptions = _mod.LocationService.GetLocations()
+            .Select(loc => preferLocalized ? (loc.GetDisplayName() ?? loc.Name ?? "Unknown") : (loc.Name ?? "Unknown"))
+            .Prepend(_helper.Translation.Get("config.current_location"))
+            .ToArray();
+        _cachedLocationCount = locationCount;
+        _cachedLanguage = lang;
+
+        return _cachedLocationOptions;
+    }
 }
