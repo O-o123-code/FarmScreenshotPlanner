@@ -8,7 +8,6 @@ A [Stardew Valley](https://www.stardewvalley.net/) SMAPI mod that captures full-
 - **Customizable tile grid** — configure color, thickness (1-3px), and opacity
 - **Output scale presets** — 25%, 50%, 75%, 100%
 - **GMCM integration** — full configuration UI (optional dependency)
-- **Location picker** — select a specific location via dropdown
 - **Instant access** — non-modal result dialog with "Open Folder" button
 - **Auto-cleanup** — optionally delete the game's original screenshot after processing
 - **i18n** — English & Simplified Chinese, other languages welcome
@@ -30,7 +29,7 @@ A [Stardew Valley](https://www.stardewvalley.net/) SMAPI mod that captures full-
 
 Press **J** to capture a full-map screenshot of your current location.
 
-Or use the console command: `/farm_screenshot [location_name]`
+Or use the console command: `/farm_screenshot`
 
 ## Configuration
 
@@ -39,7 +38,6 @@ A `config.json` is generated on first launch. You can edit it manually or use GM
 | Setting | Default | Description |
 |---|---|---|
 | Hotkey | J | Screenshot hotkey |
-| SelectedLocation | Current Location | Target location for screenshot |
 | OutputScale | 0.25 | Scale preset (25/50/75/100%) |
 | SavePath | Screenshots/ | Output directory |
 | DeleteGameOriginal | true | Delete game's original file after grid overlay |

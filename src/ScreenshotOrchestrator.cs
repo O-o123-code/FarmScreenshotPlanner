@@ -32,7 +32,7 @@ public class ScreenshotOrchestrator
         _mod = mod;
     }
 
-    public void ExecuteCapture(string? locationName = null)
+    public void ExecuteCapture()
     {
         if (_isRendering)
         {
@@ -50,17 +50,15 @@ public class ScreenshotOrchestrator
         _isRendering = true;
         try
         {
-            _mod.LogFile.Debug($"ExecuteCapture triggered, locationName={(locationName ?? "null")}");
-
-            var location = ResolveLocation(locationName);
+            var location = Game1.currentLocation;
             if (location is null)
             {
-                _mod.LogFile.Warn("No valid location found for screenshot.");
+                _mod.LogFile.Warn("No valid location for screenshot.");
                 _isRendering = false;
                 return;
             }
 
-            _mod.LogFile.Debug($"Resolved location: {location.Name ?? "null"}");
+            _mod.LogFile.Debug($"Capturing screenshot at: {location.Name ?? "null"}");
 
             // Normalize lighting (no pause — the game must keep running for takeMapScreenshot)
             _freezer.Freeze();
@@ -77,7 +75,7 @@ public class ScreenshotOrchestrator
             _waitTicks = 0;
 
             // Invoke the game's built-in map screenshot (full scale for maximum quality)
-            string? result = InvokeGameScreenshot(location, 1f, _pendingPrefix);
+            string? result = InvokeGameScreenshot(1f, _pendingPrefix);
             _mod.LogFile.Debug($"takeMapScreenshot returned: {result ?? "(null)"}");
 
             // Start async polling for the new screenshot file
@@ -251,41 +249,18 @@ public class ScreenshotOrchestrator
         }
     }
 
-    /// <summary>
-    /// Invokes Game1.takeMapScreenshot via reflection.
-    /// Tries the private overload (with GameLocation) first, then falls back to the public one.
-    /// </summary>
-    private string? InvokeGameScreenshot(GameLocation location, float scale, string name)
+    private string? InvokeGameScreenshot(float scale, string name)
     {
         var game1 = Game1.game1;
         var game1Type = game1.GetType();
         var onDone = new Action(() => _mod.LogFile.Debug("Game screenshot onDone callback fired."));
 
-        // Attempt 1: private overload with GameLocation parameter
-        //   private String takeMapScreenshot(GameLocation, Single, String, Action)
-        var methodWithLocation = FindMethod(game1Type, "takeMapScreenshot",
-            typeof(GameLocation), typeof(float), typeof(string), typeof(Action));
-        if (methodWithLocation is not null)
-        {
-            _mod.LogFile.Debug("Calling takeMapScreenshot(GameLocation, float, string, Action)");
-            return methodWithLocation.Invoke(game1, new object[] { location, scale, name, onDone }) as string;
-        }
-
-        // Attempt 2: public overload without GameLocation
-        //   public String takeMapScreenshot(Nullable<Single>, String, Action)
-        var methodPublic = FindMethod(game1Type, "takeMapScreenshot",
+        var method = FindMethod(game1Type, "takeMapScreenshot",
             typeof(float?), typeof(string), typeof(Action));
-        if (methodPublic is not null)
+        if (method is not null)
         {
-            if (!location.NameOrUniqueName.Equals(Game1.currentLocation?.NameOrUniqueName, StringComparison.OrdinalIgnoreCase))
-            {
-                _mod.LogFile.Warn($"Cannot target location '{location.Name}' — GameLocation overload not found. Using current location.");
-                _hud.Hide();
-                _hud.Show(_mod.Helper.Translation.Get("error.not_at_location"));
-                return null;
-            }
             _mod.LogFile.Debug("Calling takeMapScreenshot(float?, string, Action)");
-            return methodPublic.Invoke(game1, new object?[] { (float?)scale, name, onDone }) as string;
+            return method.Invoke(game1, new object?[] { (float?)scale, name, onDone }) as string;
         }
 
         _mod.LogFile.Warn("takeMapScreenshot method not found in this game version.");
@@ -317,25 +292,6 @@ public class ScreenshotOrchestrator
             }
             if (match) return method;
         }
-        return null;
-    }
-
-    private GameLocation? ResolveLocation(string? locationName)
-    {
-        string internalMarker = _mod.Helper.Translation.Get("config.current_location");
-        if (string.IsNullOrEmpty(locationName) || locationName == "Current Location" || locationName == internalMarker)
-            return Game1.currentLocation;
-
-        foreach (var loc in _mod.LocationService.GetLocations())
-        {
-            string display = _mod.LocationService.GetDisplayTitle(loc);
-            if (display.Equals(locationName, StringComparison.OrdinalIgnoreCase) ||
-                loc.Name?.Equals(locationName, StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return loc;
-            }
-        }
-
         return null;
     }
 

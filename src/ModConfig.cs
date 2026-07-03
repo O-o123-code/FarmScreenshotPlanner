@@ -6,7 +6,6 @@ namespace FarmScreenshotPlanner;
 public class ModConfig
 {
     public KeybindList Hotkey { get; set; } = new(SButton.J);
-    public string SelectedLocation { get; set; } = "Current Location";
     public float OutputScale { get; set; } = 0.25f;
     public string SavePath { get; set; } = string.Empty;
     public bool DeleteGameOriginal { get; set; } = true;

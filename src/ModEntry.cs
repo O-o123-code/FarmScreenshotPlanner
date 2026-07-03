@@ -20,11 +20,9 @@ public class ModEntry : Mod
 
         Config = helper.ReadConfig<ModConfig>();
         Config.Validate();
-        if (Config.SelectedLocation == "Current Location")
-            Config.SelectedLocation = helper.Translation.Get("config.current_location");
 
         helper.Events.Input.ButtonsChanged += OnButtonsChanged;
-        helper.ConsoleCommands.Add("farm_screenshot", "Capture a full-resolution farm screenshot.\n\nUsage: farm_screenshot [location_name]\nIf no location is specified, uses the configured region.", OnFarmScreenshotCommand);
+        helper.ConsoleCommands.Add("farm_screenshot", "Capture a full-resolution farm screenshot of the current location.\n\nUsage: farm_screenshot", OnFarmScreenshotCommand);
 
         LocationService = new();
         Orchestrator = new(this);
@@ -45,7 +43,7 @@ public class ModEntry : Mod
         if (!Context.IsWorldReady) return;
         if (Config.Hotkey.Keybinds.Any(k => k.Buttons.Any(b => e.Pressed.Contains(b))))
         {
-            Orchestrator.ExecuteCapture(Config.SelectedLocation);
+            Orchestrator.ExecuteCapture();
         }
     }
 
@@ -58,7 +56,6 @@ public class ModEntry : Mod
             return;
         }
 
-        string? locationName = args.Length > 0 ? string.Join(" ", args) : null;
-        Orchestrator.ExecuteCapture(locationName);
+        Orchestrator.ExecuteCapture();
     }
 }
