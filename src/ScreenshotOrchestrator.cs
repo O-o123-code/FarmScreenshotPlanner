@@ -79,6 +79,10 @@ public class ScreenshotOrchestrator
             _pendingPrefix = _mod.LocationService.GetDisplayTitle(location);
             _waitTicks = 0;
 
+            // Clean up any existing file with the same name to avoid conflicts
+            // (the game uses the prefix as filename, e.g. "Club.png")
+            TryCleanupExistingScreenshot(_screenshotFolder, _pendingPrefix);
+
             // Invoke the game's built-in map screenshot (full scale for maximum quality)
             string? result = InvokeGameScreenshot(location, 1f, _pendingPrefix);
             _mod.LogFile.Debug($"takeMapScreenshot returned: {result ?? "(null)"}");
@@ -231,6 +235,27 @@ public class ScreenshotOrchestrator
     }
 
     /// <summary>
+    /// Cleans up any existing screenshot file with the same name to avoid conflicts.
+    /// </summary>
+    private void TryCleanupExistingScreenshot(string? folder, string? prefix)
+    {
+        if (folder is null || prefix is null || !Directory.Exists(folder)) return;
+
+        string filePath = Path.Combine(folder, prefix + ".png");
+        if (!File.Exists(filePath)) return;
+
+        try
+        {
+            File.Delete(filePath);
+            _mod.LogFile.Debug($"Cleaned up existing screenshot: {filePath}");
+        }
+        catch (Exception ex)
+        {
+            _mod.LogFile.Warn($"Failed to clean up existing screenshot: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Scans the screenshot folder for a new file that didn't exist before the capture.
     /// </summary>
     private string? FindNewScreenshotFile()
@@ -248,12 +273,13 @@ public class ScreenshotOrchestrator
 
     /// <summary>
     /// Returns true if the file exists and is not locked by another process.
+    /// Uses FileShare.ReadWrite to allow reading while game is still writing.
     /// </summary>
     private static bool FileIsReady(string path)
     {
         try
         {
-            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.None);
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return true;
         }
         catch (IOException)
