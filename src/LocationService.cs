@@ -7,11 +7,20 @@ public class LocationService
 {
     private static readonly HashSet<string> FilteredLocationNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Mine"
+        "Mine",
+        "BeachNightMarket",  // 夜市可能有纹理加载问题
+        "Submarine",         // 潜水艇
+        "AbandonedJojaMart", // 废弃的 Joja 超市
     };
 
-    private static readonly string[] FilteredLocationPrefixes = { "UndergroundMine" };
-    private static readonly string[] FilteredLocationContains = { "VolcanoDungeon" };
+    private static readonly string[] FilteredLocationPrefixes = { 
+        "UndergroundMine",
+        "Dungeon",           // 各种地下城
+    };
+    private static readonly string[] FilteredLocationContains = { 
+        "VolcanoDungeon",
+        "QuarryMine",        // 采石场矿井
+    };
 
     public IEnumerable<GameLocation> GetLocations()
     {
