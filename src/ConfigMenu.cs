@@ -164,7 +164,11 @@ public class ConfigMenu
         _config.Grid.Opacity = defaults.Grid.Opacity;
     }
 
-    private void Save() => _mod.Helper.WriteConfig(_config);
+    private void Save()
+    {
+        _config.Validate();
+        _mod.Helper.WriteConfig(_config);
+    }
 
     private string[] GetCachedLocationOptions()
     {

@@ -14,8 +14,15 @@ public class HUDMessageProxy
 
     public void Show(string text)
     {
-        _message = new HUDMessage(text, HUDMessage.achievement_type) { timeLeft = 5000f };
-        Game1.addHUDMessage(_message);
+        try
+        {
+            _message = new HUDMessage(text, HUDMessage.achievement_type) { timeLeft = 5000f };
+            Game1.addHUDMessage(_message);
+        }
+        catch (Exception ex)
+        {
+            _log.Warn($"HUDMessageProxy.Show failed: {ex.Message}");
+        }
     }
 
     public void Hide()
