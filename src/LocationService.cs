@@ -45,17 +45,24 @@ public class LocationService
     private IEnumerable<(GameLocation Location, string? ParentName)> EnumerateWithParents()
     {
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenDisplayNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var location in Game1.locations)
         {
             if (IsFiltered(location)) continue;
 
+            // 内部名称去重
             if (location.Name is not null && !seenNames.Add(location.Name))
+                continue;
+
+            // 显示名称去重（兜底：防止多个位置显示相同名称，如多个"温泉"）
+            string displayTitle = GetDisplayTitle(location);
+            if (!seenDisplayNames.Add(displayTitle))
                 continue;
 
             yield return (location, null);
 
-            string parentName = GetDisplayTitle(location);
+            string parentName = displayTitle;
 
             if (location is Farm farm)
             {
@@ -64,6 +71,11 @@ public class LocationService
                     var indoors = building.indoors.Value;
                     if (indoors is null || IsFiltered(indoors)) continue;
                     if (indoors.Name is not null && !seenNames.Add(indoors.Name)) continue;
+
+                    string childDisplay = GetDisplayTitle(indoors);
+                    string fullDisplay = $"{parentName} - {childDisplay}";
+                    if (!seenDisplayNames.Add(fullDisplay)) continue;
+
                     yield return (indoors, parentName);
                 }
             }
@@ -74,6 +86,11 @@ public class LocationService
                     var indoors = building.indoors.Value;
                     if (indoors is null || IsFiltered(indoors)) continue;
                     if (indoors.Name is not null && !seenNames.Add(indoors.Name)) continue;
+
+                    string childDisplay = GetDisplayTitle(indoors);
+                    string fullDisplay = $"{parentName} - {childDisplay}";
+                    if (!seenDisplayNames.Add(fullDisplay)) continue;
+
                     yield return (indoors, parentName);
                 }
             }

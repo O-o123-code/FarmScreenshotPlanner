@@ -162,10 +162,14 @@ public class ScreenshotResultMenu : IClickableMenu
         // 缩放模式：全屏预览
         if (_isZoomed && _thumbnail is not null)
         {
+            // Session 1: 背景遮罩（默认线性采样）
+            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
             b.Draw(Game1.fadeToBlackRect,
                 new Rectangle(0, 0, Game1.uiViewport.Width, Game1.uiViewport.Height),
                 Color.Black * 0.85f);
+            b.End();
 
+            // Session 2: 缩略图（最近邻采样，保持像素画网格一致）
             float scale = Math.Min(
                 (float)Game1.uiViewport.Width / _thumbnail.Width,
                 (float)Game1.uiViewport.Height / _thumbnail.Height) * 0.95f;
@@ -174,9 +178,13 @@ public class ScreenshotResultMenu : IClickableMenu
             int drawX = (Game1.uiViewport.Width - drawW) / 2;
             int drawY = (Game1.uiViewport.Height - drawH) / 2;
 
-            Game1.graphics.GraphicsDevice.SamplerStates[0] = PointSampler;
+            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, PointSampler,
+                DepthStencilState.None, RasterizerState.CullNone);
             b.Draw(_thumbnail, new Rectangle(drawX, drawY, drawW, drawH), Color.White);
+            b.End();
 
+            // Session 3: 提示文字（默认线性采样）
+            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
             string hint = _mod.Helper.Translation.Get("ui.zoom_hint");
             Vector2 hintSize = Game1.smallFont.MeasureString(hint);
             Utility.drawTextWithShadow(b, hint, Game1.smallFont,
@@ -184,12 +192,16 @@ public class ScreenshotResultMenu : IClickableMenu
                     (Game1.uiViewport.Width - hintSize.X) / 2,
                     drawY + drawH + 12),
                 Color.White);
+            b.End();
 
             drawMouse(b);
             return;
         }
 
         // 正常菜单模式
+        // Session 1: 背景、菜单框、标题、缩放提示文字（默认线性采样）
+        b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+
         b.Draw(Game1.fadeToBlackRect,
             new Rectangle(0, 0, Game1.uiViewport.Width, Game1.uiViewport.Height),
             Color.Black * 0.3f);
@@ -204,13 +216,8 @@ public class ScreenshotResultMenu : IClickableMenu
                 yPositionOnScreen + 20),
             Game1.textColor);
 
-        // 绘制缩略图
         if (_thumbnail is not null && _thumbRect != Rectangle.Empty)
         {
-            Game1.graphics.GraphicsDevice.SamplerStates[0] = PointSampler;
-            b.Draw(_thumbnail, _thumbRect, Color.White);
-
-            // 缩略图下方显示"点击预览"提示
             string zoomHint = _mod.Helper.Translation.Get("ui.click_to_zoom");
             Vector2 zoomSize = Game1.smallFont.MeasureString(zoomHint);
             Utility.drawTextWithShadow(b, zoomHint, Game1.smallFont,
@@ -220,6 +227,19 @@ public class ScreenshotResultMenu : IClickableMenu
                 Color.Gray);
         }
 
+        b.End();
+
+        // Session 2: 缩略图（最近邻采样）
+        if (_thumbnail is not null && _thumbRect != Rectangle.Empty)
+        {
+            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, PointSampler,
+                DepthStencilState.None, RasterizerState.CullNone);
+            b.Draw(_thumbnail, _thumbRect, Color.White);
+            b.End();
+        }
+
+        // Session 3: 按钮（默认线性采样）
+        b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         foreach (var btn in _buttons)
         {
             string label = btn.name == "open_folder"
@@ -236,6 +256,7 @@ public class ScreenshotResultMenu : IClickableMenu
                     btn.bounds.Y + (btn.bounds.Height - labelSize.Y) / 2),
                 Game1.textColor);
         }
+        b.End();
 
         drawMouse(b);
     }
