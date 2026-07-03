@@ -8,18 +8,25 @@ namespace FarmScreenshotPlanner;
 
 public class ScreenshotResultMenu : IClickableMenu
 {
+    private const int MenuW = 640;
+    private const int MenuH = 420;
+    private const int ThumbMaxW = 400;
+    private const int ThumbMaxH = 240;
+
     private readonly string _filePath;
     private readonly string _title;
     private readonly ModEntry _mod;
     private readonly List<ClickableComponent> _buttons = new();
     private int _cooldownTimer;
     private Texture2D? _thumbnail;
+    private bool _isZoomed;
+    private Rectangle _thumbRect;
 
     public ScreenshotResultMenu(string filePath, string locationDisplayName, ModEntry mod)
         : base(
-            (Game1.uiViewport.Width - 480) / 2,
-            (Game1.uiViewport.Height - 220) / 2,
-            480, 220, false)
+            (Game1.uiViewport.Width - MenuW) / 2,
+            (Game1.uiViewport.Height - MenuH) / 2,
+            MenuW, MenuH, false)
     {
         _filePath = filePath;
         _mod = mod;
@@ -42,19 +49,23 @@ public class ScreenshotResultMenu : IClickableMenu
             mod.LogFile.Warn($"Failed to load thumbnail: {ex.Message}");
         }
 
-        string openLabel = mod.Helper.Translation.Get("ui.open_folder");
-        string closeLabel = mod.Helper.Translation.Get("ui.close");
-
-        int btnW = 140;
+        int btnW = 160;
         int btnH = 48;
         int gap = 16;
         int totalW = btnW * 2 + gap;
         int btnY = yPositionOnScreen + height - 64;
 
-        // 如果有缩略图，调整按钮位置
+        // 如果有缩略图，计算缩略图区域并调整按钮位置
+        _thumbRect = Rectangle.Empty;
         if (_thumbnail is not null)
         {
-            btnY = yPositionOnScreen + 170;
+            float scale = Math.Min((float)ThumbMaxW / _thumbnail.Width, (float)ThumbMaxH / _thumbnail.Height);
+            int thumbW = (int)(_thumbnail.Width * scale);
+            int thumbH = (int)(_thumbnail.Height * scale);
+            int thumbX = xPositionOnScreen + (width - thumbW) / 2;
+            int thumbY = yPositionOnScreen + 64;
+            _thumbRect = new Rectangle(thumbX, thumbY, thumbW, thumbH);
+            btnY = _thumbRect.Bottom + 16;
         }
 
         _buttons.Add(new ClickableComponent(
@@ -89,6 +100,12 @@ public class ScreenshotResultMenu : IClickableMenu
     {
         if (key == Keys.Escape)
         {
+            if (_isZoomed)
+            {
+                _isZoomed = false;
+                return;
+            }
+            DisposeThumbnail();
             Game1.activeClickableMenu = null;
             return;
         }
@@ -97,6 +114,20 @@ public class ScreenshotResultMenu : IClickableMenu
 
     public override void receiveLeftClick(int x, int y, bool playSound = true)
     {
+        // 缩放模式下，点击任意位置退出缩放
+        if (_isZoomed)
+        {
+            _isZoomed = false;
+            return;
+        }
+
+        // 点击缩略图区域 → 进入缩放预览
+        if (_thumbnail is not null && _thumbRect.Contains(x, y))
+        {
+            _isZoomed = true;
+            return;
+        }
+
         foreach (var btn in _buttons)
         {
             if (!btn.containsPoint(x, y)) continue;
@@ -109,7 +140,10 @@ public class ScreenshotResultMenu : IClickableMenu
                     _mod.LogFile.Warn($"Failed to reveal file in explorer: {_filePath}");
             }
             else if (btn.name == "close")
+            {
+                DisposeThumbnail();
                 Game1.activeClickableMenu = null;
+            }
 
             return;
         }
@@ -119,6 +153,36 @@ public class ScreenshotResultMenu : IClickableMenu
 
     public override void draw(SpriteBatch b)
     {
+        // 缩放模式：全屏预览
+        if (_isZoomed && _thumbnail is not null)
+        {
+            b.Draw(Game1.fadeToBlackRect,
+                new Rectangle(0, 0, Game1.uiViewport.Width, Game1.uiViewport.Height),
+                Color.Black * 0.85f);
+
+            float scale = Math.Min(
+                (float)Game1.uiViewport.Width / _thumbnail.Width,
+                (float)Game1.uiViewport.Height / _thumbnail.Height) * 0.95f;
+            int drawW = (int)(_thumbnail.Width * scale);
+            int drawH = (int)(_thumbnail.Height * scale);
+            int drawX = (Game1.uiViewport.Width - drawW) / 2;
+            int drawY = (Game1.uiViewport.Height - drawH) / 2;
+
+            b.Draw(_thumbnail, new Rectangle(drawX, drawY, drawW, drawH), Color.White);
+
+            string hint = _mod.Helper.Translation.Get("ui.zoom_hint");
+            Vector2 hintSize = Game1.smallFont.MeasureString(hint);
+            Utility.drawTextWithShadow(b, hint, Game1.smallFont,
+                new Vector2(
+                    (Game1.uiViewport.Width - hintSize.X) / 2,
+                    drawY + drawH + 12),
+                Color.White);
+
+            drawMouse(b);
+            return;
+        }
+
+        // 正常菜单模式
         b.Draw(Game1.fadeToBlackRect,
             new Rectangle(0, 0, Game1.uiViewport.Width, Game1.uiViewport.Height),
             Color.Black * 0.3f);
@@ -130,21 +194,22 @@ public class ScreenshotResultMenu : IClickableMenu
         Utility.drawTextWithShadow(b, _title, Game1.dialogueFont,
             new Vector2(
                 xPositionOnScreen + (width - titleSize.X) / 2,
-                yPositionOnScreen + 28),
+                yPositionOnScreen + 20),
             Game1.textColor);
 
         // 绘制缩略图
-        if (_thumbnail is not null)
+        if (_thumbnail is not null && _thumbRect != Rectangle.Empty)
         {
-            int thumbMaxW = 160;
-            int thumbMaxH = 100;
-            float scale = Math.Min((float)thumbMaxW / _thumbnail.Width, (float)thumbMaxH / _thumbnail.Height);
-            int thumbW = (int)(_thumbnail.Width * scale);
-            int thumbH = (int)(_thumbnail.Height * scale);
-            int thumbX = xPositionOnScreen + (width - thumbW) / 2;
-            int thumbY = yPositionOnScreen + 60;
+            b.Draw(_thumbnail, _thumbRect, Color.White);
 
-            b.Draw(_thumbnail, new Rectangle(thumbX, thumbY, thumbW, thumbH), Color.White);
+            // 缩略图下方显示"点击预览"提示
+            string zoomHint = _mod.Helper.Translation.Get("ui.click_to_zoom");
+            Vector2 zoomSize = Game1.smallFont.MeasureString(zoomHint);
+            Utility.drawTextWithShadow(b, zoomHint, Game1.smallFont,
+                new Vector2(
+                    xPositionOnScreen + (width - zoomSize.X) / 2,
+                    _thumbRect.Bottom + 4),
+                Color.Gray);
         }
 
         foreach (var btn in _buttons)
@@ -165,5 +230,11 @@ public class ScreenshotResultMenu : IClickableMenu
         }
 
         drawMouse(b);
+    }
+
+    private void DisposeThumbnail()
+    {
+        _thumbnail?.Dispose();
+        _thumbnail = null;
     }
 }

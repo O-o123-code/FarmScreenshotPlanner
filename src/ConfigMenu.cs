@@ -117,6 +117,22 @@ public class ConfigMenu
             tooltip: () => _helper.Translation.Get("gmcm.scale_tooltip"),
             allowedValues: scaleChoices);
 
+        string[] formatChoices = { "PNG", "JPEG" };
+        _api.AddTextOption(manifest,
+            () => _config.OutputFormat.ToString(),
+            val => _config.OutputFormat = Enum.Parse<OutputFormat>(val),
+            () => _helper.Translation.Get("gmcm.output_format"),
+            tooltip: () => _helper.Translation.Get("gmcm.output_format_tooltip"),
+            allowedValues: formatChoices);
+
+        _api.AddNumberOption(manifest,
+            () => _config.JpegQuality,
+            val => _config.JpegQuality = val,
+            () => _helper.Translation.Get("gmcm.jpeg_quality"),
+            tooltip: () => _helper.Translation.Get("gmcm.jpeg_quality_tooltip"),
+            min: 50, max: 100, interval: 5,
+            formatValue: v => v + "%");
+
         _api.AddSectionTitle(manifest, () => _helper.Translation.Get("gmcm.grid_enabled"));
         _api.AddBoolOption(manifest,
             () => _config.Grid.Enabled,
@@ -157,13 +173,15 @@ public class ConfigMenu
             () => _helper.Translation.Get("gmcm.use_game_screenshot_folder"),
             tooltip: () => _helper.Translation.Get("gmcm.use_game_screenshot_folder_tooltip"));
 
-        string savePathDisplay = _config.UseGameScreenshotFolder
-            ? Game1.game1.GetScreenshotFolder(false)
-            : (string.IsNullOrEmpty(_config.SavePath)
-                ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
-                : _config.SavePath);
         _api.AddParagraph(manifest, () =>
-            _helper.Translation.Get("gmcm.save_path_label") + ": " + savePathDisplay);
+        {
+            string savePath = _config.UseGameScreenshotFolder
+                ? Game1.game1.GetScreenshotFolder(false)
+                : (string.IsNullOrEmpty(_config.SavePath)
+                    ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
+                    : _config.SavePath);
+            return _helper.Translation.Get("gmcm.save_path_label") + ": " + savePath;
+        });
 
         _api.AddBoolOption(manifest,
             () => _config.DeleteGameOriginal,
@@ -171,18 +189,21 @@ public class ConfigMenu
             () => _helper.Translation.Get("gmcm.delete_original"),
             tooltip: () => _helper.Translation.Get("gmcm.delete_original_tooltip"));
 
-        string gameScreenshotFolder = Game1.game1.GetScreenshotFolder(false);
         _api.AddParagraph(manifest, () =>
-            _helper.Translation.Get("gmcm.game_screenshot_path") + ": " + gameScreenshotFolder);
+            _helper.Translation.Get("gmcm.game_screenshot_path") + ": " + Game1.game1.GetScreenshotFolder(false));
     }
 
     private void Reset()
     {
         var defaults = new ModConfig();
         _config.Hotkey = defaults.Hotkey;
+        _config.CancelHotkey = defaults.CancelHotkey;
         _config.SelectedLocation = defaults.SelectedLocation;
         _config.OutputScale = defaults.OutputScale;
+        _config.OutputFormat = defaults.OutputFormat;
+        _config.JpegQuality = defaults.JpegQuality;
         _config.SavePath = defaults.SavePath;
+        _config.UseGameScreenshotFolder = defaults.UseGameScreenshotFolder;
         _config.DeleteGameOriginal = defaults.DeleteGameOriginal;
         _config.Grid.Enabled = defaults.Grid.Enabled;
         _config.Grid.Color = defaults.Grid.Color;
@@ -211,10 +232,9 @@ public class ConfigMenu
             return _cachedLocationOptions;
         }
 
-        // 重新构建位置列表（按显示名称排序）
-        bool preferLocalized = lang == LocalizedContentManager.LanguageCode.zh;
+        // 重新构建位置列表（使用分组标题，按显示名称排序）
         _cachedLocationOptions = _mod.LocationService.GetLocations()
-            .Select(loc => preferLocalized ? (loc.GetDisplayName() ?? loc.Name ?? "Unknown") : (loc.Name ?? "Unknown"))
+            .Select(loc => _mod.LocationService.GetGroupedDisplayTitle(loc))
             .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
             .Prepend(_helper.Translation.Get("config.current_location"))
             .ToArray();

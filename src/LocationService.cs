@@ -22,36 +22,59 @@ public class LocationService
         "QuarryMine",        // 采石场矿井
     };
 
-    public IEnumerable<GameLocation> GetLocations()
+    private IEnumerable<(GameLocation Location, string? ParentName)> EnumerateWithParents()
     {
         foreach (var location in Game1.locations)
         {
             if (IsFiltered(location)) continue;
-            yield return location;
-            
-            // 展开 Farm 类型的建筑内部
+            yield return (location, null);
+
+            string parentName = location.GetDisplayName() ?? location.Name ?? "Unknown";
+
             if (location is Farm farm)
             {
                 foreach (var building in farm.buildings)
                 {
                     if (building.indoors.Value is not null && !IsFiltered(building.indoors.Value))
-                        yield return building.indoors.Value;
+                        yield return (building.indoors.Value, parentName);
                 }
             }
-            // 展开 IslandLocation（姜岛）的建筑内部
             else if (location is IslandLocation island)
             {
                 foreach (var building in island.buildings)
                 {
                     if (building.indoors.Value is not null && !IsFiltered(building.indoors.Value))
-                        yield return building.indoors.Value;
+                        yield return (building.indoors.Value, parentName);
                 }
             }
         }
     }
 
+    public IEnumerable<GameLocation> GetLocations()
+    {
+        foreach (var (location, _) in EnumerateWithParents())
+            yield return location;
+    }
+
     public string GetDisplayTitle(GameLocation location)
     {
+        return location.GetDisplayName() ?? location.Name ?? "Unknown";
+    }
+
+    /// <summary>
+    /// Returns "Parent - DisplayName" for building interiors, just "DisplayName" for top-level locations.
+    /// Used in GMCM dropdown for visual grouping.
+    /// </summary>
+    public string GetGroupedDisplayTitle(GameLocation location)
+    {
+        foreach (var (loc, parent) in EnumerateWithParents())
+        {
+            if (ReferenceEquals(loc, location))
+            {
+                string name = loc.GetDisplayName() ?? loc.Name ?? "Unknown";
+                return parent is not null ? $"{parent} - {name}" : name;
+            }
+        }
         return location.GetDisplayName() ?? location.Name ?? "Unknown";
     }
 

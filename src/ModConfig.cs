@@ -3,12 +3,20 @@ using StardewModdingAPI.Utilities;
 
 namespace FarmScreenshotPlanner;
 
+public enum OutputFormat
+{
+    PNG,
+    JPEG
+}
+
 public class ModConfig
 {
     public KeybindList Hotkey { get; set; } = new(SButton.J);
     public KeybindList CancelHotkey { get; set; } = new(SButton.X);
     public string SelectedLocation { get; set; } = "Current Location";
     public float OutputScale { get; set; } = 0.25f;
+    public OutputFormat OutputFormat { get; set; } = OutputFormat.PNG;
+    public int JpegQuality { get; set; } = 90;
     public string SavePath { get; set; } = string.Empty;
     public bool UseGameScreenshotFolder { get; set; } = false;
     public bool DeleteGameOriginal { get; set; } = true;
@@ -18,6 +26,9 @@ public class ModConfig
     {
         // 限制 OutputScale 在合理范围内
         OutputScale = Math.Clamp(OutputScale, 0.1f, 1.0f);
+
+        // 限制 JpegQuality 在合理范围内
+        JpegQuality = Math.Clamp(JpegQuality, 10, 100);
 
         // 验证 Grid 配置
         Grid.Validate();
