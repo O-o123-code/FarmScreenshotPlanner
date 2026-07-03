@@ -6,6 +6,7 @@
   "UniqueID": "kaixindawanglpc.FarmScreenshotPlanner",
   "EntryDll": "FarmScreenshotPlanner.dll",
   "MinimumApiVersion": "4.0.0",
+  "UpdateKeys": [ "Nexus:48585" ],
   "Dependencies": [
     {
       "UniqueID": "spacechase0.GenericModConfigMenu",
