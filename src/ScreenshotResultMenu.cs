@@ -159,47 +159,62 @@ public class ScreenshotResultMenu : IClickableMenu
 
     public override void draw(SpriteBatch b)
     {
-        // 缩放模式：全屏预览
-        if (_isZoomed && _thumbnail is not null)
+        // SMAPI 在调用 draw() 前已调用 b.Begin()，先关闭它的会话
+        b.End();
+
+        try
         {
-            // Session 1: 背景遮罩（默认线性采样）
-            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-            b.Draw(Game1.fadeToBlackRect,
-                new Rectangle(0, 0, Game1.uiViewport.Width, Game1.uiViewport.Height),
-                Color.Black * 0.85f);
-            b.End();
-
-            // Session 2: 缩略图（最近邻采样，保持像素画网格一致）
-            float scale = Math.Min(
-                (float)Game1.uiViewport.Width / _thumbnail.Width,
-                (float)Game1.uiViewport.Height / _thumbnail.Height) * 0.95f;
-            int drawW = (int)(_thumbnail.Width * scale);
-            int drawH = (int)(_thumbnail.Height * scale);
-            int drawX = (Game1.uiViewport.Width - drawW) / 2;
-            int drawY = (Game1.uiViewport.Height - drawH) / 2;
-
-            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, PointSampler,
-                DepthStencilState.None, RasterizerState.CullNone);
-            b.Draw(_thumbnail, new Rectangle(drawX, drawY, drawW, drawH), Color.White);
-            b.End();
-
-            // Session 3: 提示文字（默认线性采样）
-            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-            string hint = _mod.Helper.Translation.Get("ui.zoom_hint");
-            Vector2 hintSize = Game1.smallFont.MeasureString(hint);
-            Utility.drawTextWithShadow(b, hint, Game1.smallFont,
-                new Vector2(
-                    (Game1.uiViewport.Width - hintSize.X) / 2,
-                    drawY + drawH + 12),
-                Color.White);
-            b.End();
-
-            drawMouse(b);
-            return;
+            if (_isZoomed && _thumbnail is not null)
+                DrawZoomMode(b);
+            else
+                DrawNormalMode(b);
         }
+        finally
+        {
+            // 为 SMAPI 的 End() 打开一个会话
+            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+        }
+    }
 
-        // 正常菜单模式
-        // Session 1: 背景、菜单框、标题、缩放提示文字（默认线性采样）
+    private void DrawZoomMode(SpriteBatch b)
+    {
+        // Session 1: 背景遮罩（默认线性采样）
+        b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+        b.Draw(Game1.fadeToBlackRect,
+            new Rectangle(0, 0, Game1.uiViewport.Width, Game1.uiViewport.Height),
+            Color.Black * 0.85f);
+        b.End();
+
+        // Session 2: 缩略图（最近邻采样，保持像素画网格一致）
+        float scale = Math.Min(
+            (float)Game1.uiViewport.Width / _thumbnail!.Width,
+            (float)Game1.uiViewport.Height / _thumbnail.Height) * 0.95f;
+        int drawW = Math.Max(1, (int)(_thumbnail.Width * scale));
+        int drawH = Math.Max(1, (int)(_thumbnail.Height * scale));
+        int drawX = (Game1.uiViewport.Width - drawW) / 2;
+        int drawY = (Game1.uiViewport.Height - drawH) / 2;
+
+        b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, PointSampler,
+            DepthStencilState.None, RasterizerState.CullNone);
+        b.Draw(_thumbnail, new Rectangle(drawX, drawY, drawW, drawH), Color.White);
+        b.End();
+
+        // Session 3: 提示文字 + 鼠标（默认线性采样）
+        b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+        string hint = _mod.Helper.Translation.Get("ui.zoom_hint");
+        Vector2 hintSize = Game1.smallFont.MeasureString(hint);
+        Utility.drawTextWithShadow(b, hint, Game1.smallFont,
+            new Vector2(
+                (Game1.uiViewport.Width - hintSize.X) / 2,
+                drawY + drawH + 12),
+            Color.White);
+        drawMouse(b);
+        b.End();
+    }
+
+    private void DrawNormalMode(SpriteBatch b)
+    {
+        // Session 1: 背景、菜单框、标题、提示文字（默认线性采样）
         b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
         b.Draw(Game1.fadeToBlackRect,
@@ -238,7 +253,7 @@ public class ScreenshotResultMenu : IClickableMenu
             b.End();
         }
 
-        // Session 3: 按钮（默认线性采样）
+        // Session 3: 按钮 + 鼠标（默认线性采样）
         b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         foreach (var btn in _buttons)
         {
@@ -256,9 +271,8 @@ public class ScreenshotResultMenu : IClickableMenu
                     btn.bounds.Y + (btn.bounds.Height - labelSize.Y) / 2),
                 Game1.textColor);
         }
-        b.End();
-
         drawMouse(b);
+        b.End();
     }
 
     private void DisposeThumbnail()
