@@ -76,7 +76,9 @@ public class ScreenshotOrchestrator
             }
 
             _freezer.Freeze();
-            _hud.Show(_mod.Helper.Translation.Get("hud.rendering"));
+            string renderMsg = _mod.Helper.Translation.Get("hud.rendering");
+            string cancelHint = _mod.Helper.Translation.Get("hud.cancel_hint");
+            _hud.Show($"{renderMsg} {cancelHint}");
 
             _screenshotFolder = Game1.game1.GetScreenshotFolder(true);
             _pendingPrefix = location.Name ?? "Unknown";
