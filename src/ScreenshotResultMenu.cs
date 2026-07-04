@@ -191,8 +191,9 @@ public class ScreenshotResultMenu : IClickableMenu
         finally
         {
             // 为 SMAPI 的 End() 打开一个会话
-            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-            // 在 SMAPI 原始批次中绘制光标，避免自定义批次状态导致光标边缘伪影
+            // 使用 PointSampler 绘制光标，避免线性采样导致像素纹理边缘伪影
+            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, PointSampler,
+                DepthStencilState.None, RasterizerState.CullNone);
             drawMouse(b);
         }
     }
