@@ -50,20 +50,12 @@ public class ConfigMenu
 
         helper.Events.GameLoop.SaveLoaded += OnSaveChanged;
         helper.Events.GameLoop.ReturnedToTitle += OnSaveChanged;
-        helper.Events.Player.Warped += OnWarped;
 
         RebuildMenu();
     }
 
     private void OnSaveChanged(object? sender, EventArgs e)
     {
-        _cachedLocationOptions = null;
-        RebuildMenu();
-    }
-
-    private void OnWarped(object? sender, StardewModdingAPI.Events.WarpedEventArgs e)
-    {
-        // Invalidate cache and rebuild menu when player warps (may have entered/exited a building)
         _cachedLocationOptions = null;
         RebuildMenu();
     }

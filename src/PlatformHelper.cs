@@ -15,13 +15,13 @@ public static class PlatformHelper
             }
             else if (OperatingSystem.IsLinux())
             {
-                string dir = Path.GetDirectoryName(filePath)!;
+                string dir = Path.GetDirectoryName(filePath) ?? ".";
                 Process.Start(new ProcessStartInfo("xdg-open", $"\"{dir}\"") { UseShellExecute = true });
                 return true;
             }
             else if (OperatingSystem.IsMacOS())
             {
-                string dir = Path.GetDirectoryName(filePath)!;
+                string dir = Path.GetDirectoryName(filePath) ?? ".";
                 Process.Start(new ProcessStartInfo("open", $"\"{dir}\"") { UseShellExecute = true });
                 return true;
             }
