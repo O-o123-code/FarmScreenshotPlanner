@@ -117,6 +117,16 @@ public class ScreenshotOrchestrator
             return;
         }
 
+        // Check for cancel hotkey
+        if (_mod.Config.CancelHotkey.JustPressed())
+        {
+            _mod.Monitor.Info("Screenshot cancelled by user.");
+            _hud.Hide();
+            _hud.Show(_mod.Helper.Translation.Get("hud.cancelled"));
+            Cleanup(false);
+            return;
+        }
+
         _waitTicks++;
 
         // 进度反馈：每秒更新 HUD 显示

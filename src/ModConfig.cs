@@ -12,6 +12,7 @@ public enum OutputFormat
 public class ModConfig
 {
     public KeybindList Hotkey { get; set; } = new(SButton.J);
+    public KeybindList CancelHotkey { get; set; } = new(SButton.X);
     public string SelectedLocation { get; set; } = "Current Location";
     public float OutputScale { get; set; } = 0.25f;
     public OutputFormat OutputFormat { get; set; } = OutputFormat.PNG;
