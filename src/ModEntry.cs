@@ -8,29 +8,28 @@ namespace FarmScreenshotPlanner;
 public class ModEntry : Mod
 {
     internal ModConfig Config { get; private set; } = null!;
-    internal RollingFileLogger LogFile { get; private set; } = null!;
     internal LocationService LocationService { get; private set; } = null!;
     internal ScreenshotOrchestrator Orchestrator { get; private set; } = null!;
     internal ConfigMenu ConfigMenu { get; private set; } = null!;
 
     public override void Entry(IModHelper helper)
     {
-        LogFile = new RollingFileLogger(helper.DirectoryPath);
-        LogFile.Info("Mod initializing...");
+        Monitor.Info("Mod initializing...");
 
         Config = helper.ReadConfig<ModConfig>();
         Config.Validate();
 
-        helper.Events.Input.ButtonsChanged += OnButtonsChanged;
-        helper.ConsoleCommands.Add("farm_screenshot", "Capture a full-resolution farm screenshot of the current location.\n\nUsage: farm_screenshot", OnFarmScreenshotCommand);
+        helper.Events.Input.ButtonPressed += OnButtonPressed;
+        helper.Events.Input.MouseWheelScrolled += OnMouseWheelScrolled;
+        helper.ConsoleCommands.Add("farm_screenshot", "Capture a full-resolution farm screenshot.\n\nUsage: farm_screenshot [location_name]\nIf no location is specified, uses the configured region.", OnFarmScreenshotCommand);
 
-        LocationService = new();
+        LocationService = new(helper.Translation);
         Orchestrator = new(this);
         ConfigMenu = new(this);
 
         helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 
-        LogFile.Info("Mod initialized.");
+        Monitor.Info("Mod initialized.");
     }
 
     private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
@@ -38,12 +37,21 @@ public class ModEntry : Mod
         ConfigMenu.TryRegister(Helper);
     }
 
-    private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
+    private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
     {
         if (!Context.IsWorldReady) return;
-        if (Config.Hotkey.Keybinds.Any(k => k.Buttons.Any(b => e.Pressed.Contains(b))))
+
+        if (Config.Hotkey.JustPressed())
         {
             Orchestrator.ExecuteCapture();
+        }
+    }
+
+    private void OnMouseWheelScrolled(object? sender, MouseWheelScrolledEventArgs e)
+    {
+        if (Game1.activeClickableMenu is ScreenshotResultMenu menu)
+        {
+            menu.HandleScrollWheel(e.Delta);
         }
     }
 
@@ -51,8 +59,7 @@ public class ModEntry : Mod
     {
         if (!Context.IsWorldReady)
         {
-            LogFile.Warn("Command ignored: no save loaded.");
-            Monitor.Log("No save loaded. Please load a save first.", LogLevel.Warn);
+            Monitor.Warn("Command ignored: no save loaded.");
             return;
         }
 

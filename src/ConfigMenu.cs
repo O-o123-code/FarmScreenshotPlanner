@@ -34,7 +34,7 @@ public class ConfigMenu
     {
         if (!helper.ModRegistry.IsLoaded("spacechase0.GenericModConfigMenu"))
         {
-            _mod.LogFile.Info(helper.Translation.Get("log.gmcm_not_found"));
+            _mod.Monitor.Info(helper.Translation.Get("log.gmcm_not_found"));
             return;
         }
 
@@ -49,7 +49,11 @@ public class ConfigMenu
         RebuildMenu();
     }
 
-    private void OnSaveChanged(object? sender, EventArgs e) => RebuildMenu();
+    private void OnSaveChanged(object? sender, EventArgs e)
+    {
+        _cachedLocationOptions = null;
+        RebuildMenu();
+    }
 
     private void RebuildMenu()
     {
@@ -72,7 +76,14 @@ public class ConfigMenu
         _api.AddKeybindList(manifest,
             () => _config.Hotkey,
             val => _config.Hotkey = val,
-            () => _helper.Translation.Get("gmcm.hotkey"));
+            () => _helper.Translation.Get("gmcm.hotkey"),
+            tooltip: () => _helper.Translation.Get("gmcm.hotkey_tooltip"));
+
+        _api.AddKeybindList(manifest,
+            () => _config.CancelHotkey,
+            val => _config.CancelHotkey = val,
+            () => _helper.Translation.Get("gmcm.cancel_hotkey"),
+            tooltip: () => _helper.Translation.Get("gmcm.cancel_hotkey_tooltip"));
 
         string[] scaleChoices = { "25%", "50%", "75%", "100%" };
         _api.AddTextOption(manifest,
@@ -85,6 +96,22 @@ public class ConfigMenu
             () => _helper.Translation.Get("gmcm.scale"),
             tooltip: () => _helper.Translation.Get("gmcm.scale_tooltip"),
             allowedValues: scaleChoices);
+
+        string[] formatChoices = { "PNG", "JPEG" };
+        _api.AddTextOption(manifest,
+            () => _config.OutputFormat.ToString(),
+            val => _config.OutputFormat = Enum.Parse<OutputFormat>(val),
+            () => _helper.Translation.Get("gmcm.output_format"),
+            tooltip: () => _helper.Translation.Get("gmcm.output_format_tooltip"),
+            allowedValues: formatChoices);
+
+        _api.AddNumberOption(manifest,
+            () => _config.JpegQuality,
+            val => _config.JpegQuality = val,
+            () => _helper.Translation.Get("gmcm.jpeg_quality"),
+            tooltip: () => _helper.Translation.Get("gmcm.jpeg_quality_tooltip"),
+            min: 50, max: 100, interval: 5,
+            formatValue: v => v + "%");
 
         _api.AddSectionTitle(manifest, () => _helper.Translation.Get("gmcm.grid_enabled"));
         _api.AddBoolOption(manifest,
@@ -120,11 +147,21 @@ public class ConfigMenu
             () => _helper.Translation.Get("gmcm.grid_opacity"),
             min: 0f, max: 1f, interval: 0.05f);
 
-        string savePathDisplay = string.IsNullOrEmpty(_config.SavePath)
-            ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
-            : _config.SavePath;
+        _api.AddBoolOption(manifest,
+            () => _config.UseGameScreenshotFolder,
+            val => _config.UseGameScreenshotFolder = val,
+            () => _helper.Translation.Get("gmcm.use_game_screenshot_folder"),
+            tooltip: () => _helper.Translation.Get("gmcm.use_game_screenshot_folder_tooltip"));
+
         _api.AddParagraph(manifest, () =>
-            _helper.Translation.Get("gmcm.save_path_label") + ": " + savePathDisplay);
+        {
+            string savePath = _config.UseGameScreenshotFolder
+                ? Game1.game1.GetScreenshotFolder(false)
+                : (string.IsNullOrEmpty(_config.SavePath)
+                    ? Path.Combine(_mod.Helper.DirectoryPath, "Screenshots")
+                    : _config.SavePath);
+            return _helper.Translation.Get("gmcm.save_path_label") + ": " + savePath;
+        });
 
         _api.AddBoolOption(manifest,
             () => _config.DeleteGameOriginal,
@@ -132,17 +169,21 @@ public class ConfigMenu
             () => _helper.Translation.Get("gmcm.delete_original"),
             tooltip: () => _helper.Translation.Get("gmcm.delete_original_tooltip"));
 
-        string gameScreenshotFolder = Game1.game1.GetScreenshotFolder(false);
         _api.AddParagraph(manifest, () =>
-            _helper.Translation.Get("gmcm.game_screenshot_path") + ": " + gameScreenshotFolder);
+            _helper.Translation.Get("gmcm.game_screenshot_path") + ": " + Game1.game1.GetScreenshotFolder(false));
     }
 
     private void Reset()
     {
         var defaults = new ModConfig();
         _config.Hotkey = defaults.Hotkey;
+        _config.CancelHotkey = defaults.CancelHotkey;
+        _config.SelectedLocation = defaults.SelectedLocation;
         _config.OutputScale = defaults.OutputScale;
+        _config.OutputFormat = defaults.OutputFormat;
+        _config.JpegQuality = defaults.JpegQuality;
         _config.SavePath = defaults.SavePath;
+        _config.UseGameScreenshotFolder = defaults.UseGameScreenshotFolder;
         _config.DeleteGameOriginal = defaults.DeleteGameOriginal;
         _config.Grid.Enabled = defaults.Grid.Enabled;
         _config.Grid.Color = defaults.Grid.Color;
@@ -150,6 +191,36 @@ public class ConfigMenu
         _config.Grid.Opacity = defaults.Grid.Opacity;
     }
 
-    private void Save() => _mod.Helper.WriteConfig(_config);
+    private void Save()
+    {
+        _config.Validate();
+        _mod.Helper.WriteConfig(_config);
+    }
 
+    private string[] GetCachedLocationOptions()
+    {
+        if (_helper is null) return Array.Empty<string>();
+
+        var lang = Game1.content.GetCurrentLanguage();
+        int locationCount = _mod.LocationService.GetLocations().Count();
+
+        // 如果缓存有效（位置数量和语言未变化），直接返回缓存
+        if (_cachedLocationOptions is not null
+            && _cachedLocationCount == locationCount
+            && _cachedLanguage == lang)
+        {
+            return _cachedLocationOptions;
+        }
+
+        // 重新构建位置列表（使用分组标题，按显示名称排序）
+        _cachedLocationOptions = _mod.LocationService.GetLocations()
+            .Select(loc => _mod.LocationService.GetGroupedDisplayTitle(loc))
+            .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+            .Prepend(_helper.Translation.Get("config.current_location"))
+            .ToArray();
+        _cachedLocationCount = locationCount;
+        _cachedLanguage = lang;
+
+        return _cachedLocationOptions;
+    }
 }

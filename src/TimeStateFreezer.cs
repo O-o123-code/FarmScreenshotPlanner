@@ -7,10 +7,6 @@ public class TimeStateFreezer
 {
     private Color _savedAmbientLight;
 
-    /// <summary>
-    /// Normalizes lighting for screenshot (white ambient light = neutral illumination).
-    /// Does NOT pause the game — the game must keep running for takeMapScreenshot to render.
-    /// </summary>
     public void Freeze()
     {
         _savedAmbientLight = Game1.ambientLight;

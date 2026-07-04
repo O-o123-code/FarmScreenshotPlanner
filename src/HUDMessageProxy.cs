@@ -1,15 +1,29 @@
+using StardewModdingAPI;
 using StardewValley;
 
 namespace FarmScreenshotPlanner;
 
 public class HUDMessageProxy
 {
+    private readonly IMonitor _log;
     private HUDMessage? _message;
+
+    public HUDMessageProxy(IMonitor log)
+    {
+        _log = log;
+    }
 
     public void Show(string text)
     {
-        _message = new HUDMessage(text, HUDMessage.achievement_type) { timeLeft = 5000f };
-        Game1.addHUDMessage(_message);
+        try
+        {
+            _message = new HUDMessage(text, 0) { timeLeft = 5000f };
+            Game1.addHUDMessage(_message);
+        }
+        catch (Exception ex)
+        {
+            _log.Warn($"HUDMessageProxy.Show failed: {ex.Message}");
+        }
     }
 
     public void Hide()
@@ -21,9 +35,9 @@ public class HUDMessageProxy
                 Game1.hudMessages.Remove(_message);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // 忽略移除失败的情况，避免影响主流程
+            _log.Warn($"HUDMessageProxy.Hide failed: {ex.Message}");
         }
         _message = null;
     }

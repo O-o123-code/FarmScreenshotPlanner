@@ -8,7 +8,11 @@ A [Stardew Valley](https://www.stardewvalley.net/) SMAPI mod that captures full-
 - **Customizable tile grid** — configure color, thickness (1-3px), and opacity
 - **Output scale presets** — 25%, 50%, 75%, 100%
 - **GMCM integration** — full configuration UI (optional dependency)
-- **Instant access** — non-modal result dialog with "Open Folder" button
+- **Location picker** — select a specific location via dropdown (sorted alphabetically)
+- **Thumbnail preview** — view screenshot thumbnail in result dialog
+- **Skip-wait hotkey** — press X (configurable) to skip the wait and restore game control immediately during rendering
+- **Flexible save path** — option to save to game's screenshot folder
+- **Instant access** — result dialog with "Open Folder" button
 - **Auto-cleanup** — optionally delete the game's original screenshot after processing
 - **i18n** — English & Simplified Chinese, other languages welcome
 
@@ -27,7 +31,8 @@ A [Stardew Valley](https://www.stardewvalley.net/) SMAPI mod that captures full-
 
 ## Usage
 
-Press **J** to capture a full-map screenshot of your current location.
+Press **J** to capture a full-map screenshot of your current location.  
+Press **X** to skip the wait and restore game control immediately during rendering.
 
 Or use the console command: `/farm_screenshot`
 
@@ -38,11 +43,14 @@ A `config.json` is generated on first launch. You can edit it manually or use GM
 | Setting | Default | Description |
 |---|---|---|
 | Hotkey | J | Screenshot hotkey |
+| CancelHotkey | X | Skip-wait hotkey during rendering |
+| SelectedLocation | Current Location | Target location for screenshot |
 | OutputScale | 0.25 | Scale preset (25/50/75/100%) |
 | SavePath | Screenshots/ | Output directory |
+| UseGameScreenshotFolder | false | Save to game's screenshot folder instead |
 | DeleteGameOriginal | true | Delete game's original file after grid overlay |
 | Grid.Enabled | true | Show tile grid on screenshot |
-| Grid.Color | 00000040 | Grid color (ARGB hex) |
+| Grid.Color | 00000060 | Grid color (RRGGBBAA hex) |
 | Grid.Thickness | 1 | Grid line width (1-3) |
 | Grid.Opacity | 0.5 | Grid opacity (0-1) |
 

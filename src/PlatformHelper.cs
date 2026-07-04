@@ -10,19 +10,19 @@ public static class PlatformHelper
         {
             if (OperatingSystem.IsWindows())
             {
-                Process.Start("explorer", $"/select,\"{filePath}\"");
+                Process.Start(new ProcessStartInfo("explorer", $"/select,\"{filePath}\"") { UseShellExecute = true });
                 return true;
             }
             else if (OperatingSystem.IsLinux())
             {
-                string dir = Path.GetDirectoryName(filePath)!;
-                Process.Start("xdg-open", $"\"{dir}\"");
+                string dir = Path.GetDirectoryName(filePath) ?? ".";
+                Process.Start(new ProcessStartInfo("xdg-open", $"\"{dir}\"") { UseShellExecute = true });
                 return true;
             }
             else if (OperatingSystem.IsMacOS())
             {
-                string dir = Path.GetDirectoryName(filePath)!;
-                Process.Start("open", $"\"{dir}\"");
+                string dir = Path.GetDirectoryName(filePath) ?? ".";
+                Process.Start(new ProcessStartInfo("open", $"\"{dir}\"") { UseShellExecute = true });
                 return true;
             }
             return false;

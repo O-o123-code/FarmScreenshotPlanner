@@ -4,14 +4,19 @@ namespace FarmScreenshotPlanner;
 
 public class ScreenshotSaver
 {
-    public string Save(RenderTarget2D target, string directory, string prefix)
+    public string Save(RenderTarget2D target, string directory, string prefix, ModConfig config)
     {
-        string fileName = $"{SanitizeFileName(prefix)}_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+        bool isJpeg = config.OutputFormat == OutputFormat.JPEG;
+        string ext = isJpeg ? "jpg" : "png";
+        string fileName = $"{SanitizeFileName(prefix)}_{DateTime.Now:yyyyMMdd_HHmmss}.{ext}";
         string fullPath = Path.Combine(directory, fileName);
 
         Directory.CreateDirectory(directory);
         using var stream = File.Create(fullPath);
-        target.SaveAsPng(stream, target.Width, target.Height);
+        if (isJpeg)
+            target.SaveAsJpeg(stream, target.Width, target.Height);
+        else
+            target.SaveAsPng(stream, target.Width, target.Height);
         return fullPath;
     }
 

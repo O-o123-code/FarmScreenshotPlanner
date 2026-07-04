@@ -6,7 +6,23 @@ namespace FarmScreenshotPlanner;
 
 public class TileGridRenderer
 {
+    private const int TileSize = 64;
+
     private static Texture2D? _pixel;
+
+    private static readonly SamplerState WrapSampler = new()
+    {
+        Filter = TextureFilter.Point,
+        AddressU = TextureAddressMode.Wrap,
+        AddressV = TextureAddressMode.Wrap
+    };
+
+    private sealed record GridCacheKey(
+        int Width, int Height, int SourceWidth,
+        int Thickness, float Opacity, string Color);
+
+    private GridCacheKey? _lastKey;
+    private Texture2D? _cachedGridTexture;
 
     private static Texture2D GetOrCreatePixel(GraphicsDevice gd)
     {
@@ -18,10 +34,6 @@ public class TileGridRenderer
         return _pixel;
     }
 
-    /// <summary>
-    /// Scales the source texture to finalW x finalH and overlays a tile grid.
-    /// Takes ownership of <paramref name="source"/> and disposes it after use.
-    /// </summary>
     public RenderTarget2D Apply(Texture2D source, ModConfig config, int finalW, int finalH)
     {
         if (finalW < 1) finalW = 1;
@@ -36,10 +48,8 @@ public class TileGridRenderer
         gd.SetRenderTarget(finalRT);
         gd.Clear(Color.Transparent);
 
-        Texture2D? gridTexture = null;
         try
         {
-            // Draw the source texture scaled to output size
             using var sb = new SpriteBatch(gd);
             sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
                 SamplerState.LinearClamp, DepthStencilState.None,
@@ -47,10 +57,9 @@ public class TileGridRenderer
             sb.Draw(source, new Rectangle(0, 0, finalW, finalH), Color.White);
             sb.End();
 
-            // Overlay tile grid using tiled texture (single Draw call)
             if (config.Grid.Enabled)
             {
-                gridTexture = CreateTiledGridTexture(gd, finalW, finalH, source.Width, config);
+                var gridTexture = GetOrCreateGridTexture(gd, finalW, finalH, source.Width, config);
                 sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
                     SamplerState.LinearClamp, DepthStencilState.None,
                     RasterizerState.CullNone);
@@ -61,11 +70,26 @@ public class TileGridRenderer
         finally
         {
             gd.SetRenderTargets(originalTargets);
-            source.Dispose();
-            gridTexture?.Dispose();
         }
 
         return finalRT;
+    }
+
+    private Texture2D GetOrCreateGridTexture(GraphicsDevice gd, int width, int height, int sourceWidth, ModConfig config)
+    {
+        var key = new GridCacheKey(width, height, sourceWidth,
+            config.Grid.Thickness, config.Grid.Opacity, config.Grid.Color);
+
+        if (_cachedGridTexture is not null && _lastKey == key && !_cachedGridTexture.IsDisposed
+            && _cachedGridTexture is not RenderTarget2D { IsContentLost: true })
+        {
+            return _cachedGridTexture;
+        }
+
+        _cachedGridTexture?.Dispose();
+        _lastKey = key;
+        _cachedGridTexture = CreateTiledGridTexture(gd, width, height, sourceWidth, config);
+        return _cachedGridTexture;
     }
 
     /// <summary>
@@ -75,7 +99,7 @@ public class TileGridRenderer
     private static Texture2D CreateTiledGridTexture(GraphicsDevice gd, int width, int height, int sourceWidth, ModConfig config)
     {
         float actualScale = (float)width / sourceWidth;
-        int tilePx = Math.Max(1, (int)(64 * actualScale));
+        int tilePx = Math.Max(1, (int)(TileSize * actualScale));
         int thickness = config.Grid.Thickness;
         Color gridColor = ParseHexColor(config.Grid.Color, config.Grid.Opacity);
 
@@ -102,32 +126,29 @@ public class TileGridRenderer
         gd.Clear(Color.Transparent);
 
         using var sb = new SpriteBatch(gd);
-        var wrapSampler = new SamplerState
-        {
-            Filter = TextureFilter.Point,
-            AddressU = TextureAddressMode.Wrap,
-            AddressV = TextureAddressMode.Wrap
-        };
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
-            wrapSampler, DepthStencilState.None,
+            WrapSampler, DepthStencilState.None,
             RasterizerState.CullNone);
 
         // Tile the cell pattern across the full area — single Draw call with wrap mode
         sb.Draw(cellTexture, new Rectangle(0, 0, width, height),
             new Rectangle(0, 0, width, height), Color.White);
 
+        // Draw right and bottom edge lines (not covered by wrap mode)
+        var pixel = GetOrCreatePixel(gd);
+        for (int t = 0; t < thickness; t++)
+        {
+            // Right edge
+            sb.Draw(pixel, new Rectangle(width - thickness + t, 0, 1, height), gridColor);
+            // Bottom edge
+            sb.Draw(pixel, new Rectangle(0, height - thickness + t, width, 1), gridColor);
+        }
+
         sb.End();
         gd.SetRenderTargets(originalTargets);
 
-        // Copy render target to a plain texture
-        var gridTexture = new Texture2D(gd, width, height);
-        var data = new Color[width * height];
-        gridRT.GetData(data);
-        gridTexture.SetData(data);
-        gridRT.Dispose();
         cellTexture.Dispose();
-
-        return gridTexture;
+        return gridRT;
     }
 
     private static Color ParseHexColor(string hex, float opacity)
@@ -137,6 +158,6 @@ public class TileGridRenderer
         byte g = Convert.ToByte(hex[2..4], 16);
         byte b = Convert.ToByte(hex[4..6], 16);
         byte a = Convert.ToByte(hex[6..8], 16);
-        return new Color(r, g, b) * (a / 255f * opacity);
+        return new Color(r, g, b) * opacity;
     }
 }
