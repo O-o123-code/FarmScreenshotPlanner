@@ -18,7 +18,7 @@ public class ModConfig
     public int JpegQuality { get; set; } = 90;
     public string SavePath { get; set; } = string.Empty;
     public bool UseGameScreenshotFolder { get; set; } = false;
-    public bool DeleteGameOriginal { get; set; } = false;
+    public bool DeleteGameOriginal { get; set; } = true;
     public GridConfig Grid { get; set; } = new();
 
     public void Validate()

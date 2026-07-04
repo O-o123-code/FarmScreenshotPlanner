@@ -192,6 +192,8 @@ public class ScreenshotResultMenu : IClickableMenu
         {
             // 为 SMAPI 的 End() 打开一个会话
             b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+            // 在 SMAPI 原始批次中绘制光标，避免自定义批次状态导致光标边缘伪影
+            drawMouse(b);
         }
     }
 
@@ -233,7 +235,6 @@ public class ScreenshotResultMenu : IClickableMenu
             new Vector2((Game1.uiViewport.Width - hintSize.X) / 2, hintY),
             Color.White);
 
-        drawMouse(b);
         b.End();
     }
 
@@ -278,7 +279,7 @@ public class ScreenshotResultMenu : IClickableMenu
             b.End();
         }
 
-        // Session 3: 按钮 + 鼠标（默认线性采样）
+        // Session 3: 按钮（默认线性采样）
         b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         foreach (var btn in _buttons)
         {
@@ -296,7 +297,6 @@ public class ScreenshotResultMenu : IClickableMenu
                     btn.bounds.Y + (btn.bounds.Height - labelSize.Y) / 2),
                 Game1.textColor);
         }
-        drawMouse(b);
         b.End();
     }
 
