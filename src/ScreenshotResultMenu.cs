@@ -96,13 +96,59 @@ public class ScreenshotResultMenu : IClickableMenu
             myID = 1,
             leftNeighborID = 0,
         });
+
+        // 初始化 viewport 追踪
+        _lastViewportW = Game1.uiViewport.Width;
+        _lastViewportH = Game1.uiViewport.Height;
     }
+
+    private int _lastViewportW;
+    private int _lastViewportH;
 
     public override void update(GameTime time)
     {
         base.update(time);
         if (_cooldownTimer > 0)
             _cooldownTimer -= time.ElapsedGameTime.Milliseconds;
+
+        // 检测 viewport 变化（窗口↔全屏切换），动态重定位菜单
+        if (Game1.uiViewport.Width != _lastViewportW || Game1.uiViewport.Height != _lastViewportH)
+        {
+            _lastViewportW = Game1.uiViewport.Width;
+            _lastViewportH = Game1.uiViewport.Height;
+            Reposition();
+        }
+    }
+
+    private void Reposition()
+    {
+        xPositionOnScreen = (Game1.uiViewport.Width - MenuW) / 2;
+        yPositionOnScreen = (Game1.uiViewport.Height - MenuH) / 2;
+
+        int btnW = 160;
+        int btnH = 48;
+        int gap = 16;
+        int totalW = btnW * 2 + gap;
+        int btnY = yPositionOnScreen + height - 64;
+
+        if (_thumbnail is not null && _thumbRect != Rectangle.Empty)
+        {
+            float scale = Math.Min((float)ThumbMaxW / _thumbnail.Width, (float)ThumbMaxH / _thumbnail.Height);
+            int thumbW = (int)(_thumbnail.Width * scale);
+            int thumbH = (int)(_thumbnail.Height * scale);
+            int thumbX = xPositionOnScreen + (width - thumbW) / 2;
+            int thumbY = yPositionOnScreen + 64;
+            _thumbRect = new Rectangle(thumbX, thumbY, thumbW, thumbH);
+            btnY = _thumbRect.Bottom + 36;
+        }
+
+        if (_buttons.Count >= 2)
+        {
+            _buttons[0].bounds = new Rectangle(
+                xPositionOnScreen + (width - totalW) / 2, btnY, btnW, btnH);
+            _buttons[1].bounds = new Rectangle(
+                xPositionOnScreen + (width - totalW) / 2 + btnW + gap, btnY, btnW, btnH);
+        }
     }
 
     public void HandleScrollWheel(int direction)
