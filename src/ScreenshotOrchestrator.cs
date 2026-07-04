@@ -134,8 +134,9 @@ public class ScreenshotOrchestrator
         {
             float seconds = _waitTicks / 60f;
             string baseMsg = _mod.Helper.Translation.Get("hud.rendering");
+            string cancelHint = _mod.Helper.Translation.Get("hud.cancel_hint");
             _hud.Hide();
-            _hud.Show($"{baseMsg} ({seconds:F0}s)");
+            _hud.Show($"{baseMsg} ({seconds:F0}s) {cancelHint}");
         }
 
         if (_waitTicks % PollInterval != 0)
