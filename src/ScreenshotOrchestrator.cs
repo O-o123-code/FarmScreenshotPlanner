@@ -36,7 +36,7 @@ public class ScreenshotOrchestrator
         _hud = new HUDMessageProxy(mod.Monitor);
     }
 
-    public void ExecuteCapture()
+    public void ExecuteCapture(string? locationName = null)
     {
         if (_isRendering)
         {

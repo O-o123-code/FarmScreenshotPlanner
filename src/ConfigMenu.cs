@@ -23,6 +23,9 @@ public class ConfigMenu
     private readonly ModConfig _config;
     private IGenericModConfigMenuApi? _api;
     private IModHelper? _helper;
+    private string[]? _cachedLocationOptions;
+    private int _cachedLocationCount;
+    private string? _cachedLanguage;
 
     public ConfigMenu(ModEntry mod)
     {
@@ -201,7 +204,7 @@ public class ConfigMenu
     {
         if (_helper is null) return Array.Empty<string>();
 
-        var lang = Game1.content.GetCurrentLanguage();
+        var lang = Game1.content.GetCurrentLanguage().ToString();
         int locationCount = _mod.LocationService.GetLocations().Count();
 
         // 如果缓存有效（位置数量和语言未变化），直接返回缓存

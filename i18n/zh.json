@@ -7,10 +7,6 @@
   "ui.open_folder": "打开文件夹",
   "ui.close": "关闭",
   "ui.saved_title": "{0}的蓝图已保存",
-<<<<<<< HEAD
-  "gmcm.not_ready": "请先加载存档后再查看配置选项。",
-  "gmcm.hotkey": "截图快捷键",
-=======
   "ui.click_to_zoom": "点击图片预览",
   "ui.zoom_hint": "滚轮缩放 · 点击或 Esc 返回",
   "config.current_location": "当前所在区域",
@@ -20,7 +16,6 @@
   "gmcm.cancel_hotkey": "跳过等待快捷键",
   "gmcm.cancel_hotkey_tooltip": "在截图生成过程中按下此键可跳过等待并立即恢复游戏控制。游戏内置的渲染过程仍会在后台继续。",
   "gmcm.location": "截图区域",
->>>>>>> dev-swap
   "gmcm.scale": "输出缩放",
   "gmcm.scale_tooltip": "缩放越大图片越大，100% 在大地图上可能导致卡顿或内存问题。",
   "gmcm.output_format": "输出格式",
