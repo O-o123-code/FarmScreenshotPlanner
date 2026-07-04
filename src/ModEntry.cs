@@ -20,6 +20,7 @@ public class ModEntry : Mod
         Config.Validate();
 
         helper.Events.Input.ButtonPressed += OnButtonPressed;
+        helper.Events.Input.MouseWheelScrolled += OnMouseWheelScrolled;
         helper.ConsoleCommands.Add("farm_screenshot", "Capture a full-resolution farm screenshot.\n\nUsage: farm_screenshot [location_name]\nIf no location is specified, uses the configured region.", OnFarmScreenshotCommand);
 
         LocationService = new(helper.Translation);
@@ -43,6 +44,14 @@ public class ModEntry : Mod
         if (Config.Hotkey.JustPressed())
         {
             Orchestrator.ExecuteCapture(Config.SelectedLocation);
+        }
+    }
+
+    private void OnMouseWheelScrolled(object? sender, MouseWheelScrolledEventArgs e)
+    {
+        if (Game1.activeClickableMenu is ScreenshotResultMenu menu)
+        {
+            menu.HandleScrollWheel(e.Delta);
         }
     }
 
